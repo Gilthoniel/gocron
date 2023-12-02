@@ -92,17 +92,14 @@ func (Parser) parse(expr string, convFn ConvertFn) (fields []ExprField, err erro
 
 func parseRange(expr string, convFn ConvertFn) (r Range, err error) {
 	parts := strings.Split(expr, "-")
-	from, err := convFn(parts[0])
+	r.from, err = convFn(parts[0])
 	if err != nil {
 		return
 	}
-	to, err := convFn(parts[1])
+	r.to, err = convFn(parts[1])
 	if err != nil {
 		return
 	}
-
-	r.from = from.Value(time.Time{})
-	r.to = to.Value(time.Time{})
 
 	return
 }
@@ -259,23 +256,23 @@ func (u Unit) Value(_ time.Time) int {
 }
 
 type Range struct {
-	from int
-	to   int
+	from ExprField
+	to   ExprField
 }
 
-func (r Range) Compare(_ time.Time, other int) Ordering {
+func (r Range) Compare(t time.Time, other int) Ordering {
 	switch {
-	case r.to < other:
+	case r.to.Compare(t, other) == OrderingLess:
 		return OrderingLess
-	case r.from > other:
+	case r.from.Compare(t, other) == OrderingGreater:
 		return OrderingGreater
 	default:
 		return OrderingEqual
 	}
 }
 
-func (r Range) Value(_ time.Time) int {
-	return r.from
+func (r Range) Value(t time.Time) int {
+	return r.from.Value(t)
 }
 
 type LastDayOfMonth struct{}
