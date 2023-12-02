@@ -11,27 +11,27 @@ type Parser struct{}
 func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 	matches := strings.Split(expression, " ")
 
-	weekdays, err := p.parse(matches[5])
+	weekdays, err := p.parse(matches[5], convertWeekDay)
 	if err != nil {
 		return schedule, err
 	}
-	months, err := p.parse(matches[4])
+	months, err := p.parse(matches[4], strconv.Atoi)
 	if err != nil {
 		return schedule, err
 	}
-	days, err := p.parse(matches[3])
+	days, err := p.parse(matches[3], strconv.Atoi)
 	if err != nil {
 		return schedule, err
 	}
-	hours, err := p.parse(matches[2])
+	hours, err := p.parse(matches[2], strconv.Atoi)
 	if err != nil {
 		return schedule, err
 	}
-	minutes, err := p.parse(matches[1])
+	minutes, err := p.parse(matches[1], strconv.Atoi)
 	if err != nil {
 		return schedule, err
 	}
-	seconds, err := p.parse(matches[0])
+	seconds, err := p.parse(matches[0], strconv.Atoi)
 	if err != nil {
 		return schedule, err
 	}
@@ -48,7 +48,7 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 	return
 }
 
-func (Parser) parse(expr string) (units []Unit, err error) {
+func (Parser) parse(expr string, convFn func(string) (int, error)) (units []Unit, err error) {
 	if expr == "*" {
 		return
 	}
@@ -56,7 +56,7 @@ func (Parser) parse(expr string) (units []Unit, err error) {
 	var value int
 
 	for _, u := range strings.Split(expr, ",") {
-		if value, err = strconv.Atoi(u); err != nil {
+		if value, err = convFn(u); err != nil {
 			return nil, err
 		}
 
@@ -208,4 +208,21 @@ func (u Unit) Equal(other int) bool {
 
 func (u Unit) GreaterThan(other int) bool {
 	return int(u) > other
+}
+
+var weekdays = map[string]time.Weekday{
+	"sun": time.Sunday,
+	"mon": time.Monday,
+	"tue": time.Tuesday,
+	"wed": time.Wednesday,
+	"thu": time.Thursday,
+	"fri": time.Friday,
+	"sat": time.Saturday,
+}
+
+func convertWeekDay(value string) (int, error) {
+	if weekday, found := weekdays[strings.ToLower(value)]; found {
+		return int(weekday), nil
+	}
+	return strconv.Atoi(value)
 }
