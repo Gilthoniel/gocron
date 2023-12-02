@@ -3,7 +3,7 @@
 This library is work in progress.
 - [x] Expressions until week days.
 - [ ] Year
-- [ ] Ranges
+- [x] Ranges
 - [ ] Non-standard characters
 
 ## Reference

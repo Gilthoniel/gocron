@@ -6,6 +6,19 @@ import (
 	"time"
 )
 
+type Ordering int
+
+const (
+	OrderingLess Ordering = iota - 1
+	OrderingEqual
+	OrderingGreater
+)
+
+type ExprField interface {
+	Compare(other int) Ordering
+	Value() int
+}
+
 type Parser struct{}
 
 func (p Parser) Parse(expression string) (schedule Schedule, err error) {
@@ -40,34 +53,62 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 		Month{units: months},
 		Day{units: days},
 		WeekDay{units: weekdays},
-		Hour{units: hours},
-		Minute{units: minutes},
+		Hour{fields: hours},
+		Minute{fields: minutes},
 		Second{units: seconds},
 	}
 
 	return
 }
 
-func (Parser) parse(expr string, convFn func(string) (int, error)) (units []Unit, err error) {
+func (Parser) parse(expr string, convFn func(string) (int, error)) (fields []ExprField, err error) {
 	if expr == "*" {
 		return
 	}
 
-	var value int
-
 	for _, u := range strings.Split(expr, ",") {
-		if value, err = convFn(u); err != nil {
-			return nil, err
+		var field ExprField
+		switch {
+		case strings.Contains(u, "-"):
+			field, err = parseRange(u, convFn)
+			if err != nil {
+				return
+			}
+
+		default:
+			field, err = parseUnit(u, convFn)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		units = append(units, Unit(value))
+		fields = append(fields, field)
+	}
+
+	return
+}
+
+func parseUnit(expr string, convFn func(string) (int, error)) (Unit, error) {
+	value, err := convFn(expr)
+	return Unit(value), err
+}
+
+func parseRange(expr string, convFn func(string) (int, error)) (r Range, err error) {
+	parts := strings.Split(expr, "-")
+	r.from, err = convFn(parts[0])
+	if err != nil {
+		return
+	}
+	r.to, err = convFn(parts[1])
+	if err != nil {
+		return
 	}
 
 	return
 }
 
 type Second struct {
-	units []Unit
+	units []ExprField
 }
 
 func (s Second) Next(next time.Time) (time.Time, bool) {
@@ -77,11 +118,11 @@ func (s Second) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, unit := range s.units {
-		if unit.Equal(next.Second()) {
+		switch unit.Compare(next.Second()) {
+		case OrderingEqual:
 			return next, true
-		}
-		if unit.GreaterThan(next.Second()) {
-			return time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), next.Minute(), int(unit), 0, next.Location()), true
+		case OrderingGreater:
+			return time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), next.Minute(), unit.Value(), 0, next.Location()), true
 		}
 	}
 
@@ -89,21 +130,21 @@ func (s Second) Next(next time.Time) (time.Time, bool) {
 }
 
 type Minute struct {
-	units []Unit
+	fields []ExprField
 }
 
 func (m Minute) Next(next time.Time) (time.Time, bool) {
-	if len(m.units) == 0 {
+	if len(m.fields) == 0 {
 		// Expression is `*`.
 		return next, true
 	}
 
-	for _, unit := range m.units {
-		if unit.Equal(next.Minute()) {
+	for _, field := range m.fields {
+		switch field.Compare(next.Minute()) {
+		case OrderingEqual:
 			return next, true
-		}
-		if unit.GreaterThan(next.Minute()) {
-			return time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), int(unit), 0, 0, next.Location()), true
+		case OrderingGreater:
+			return time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), field.Value(), 0, 0, next.Location()), true
 		}
 	}
 
@@ -111,21 +152,21 @@ func (m Minute) Next(next time.Time) (time.Time, bool) {
 }
 
 type Hour struct {
-	units []Unit
+	fields []ExprField
 }
 
 func (h Hour) Next(next time.Time) (time.Time, bool) {
-	if len(h.units) == 0 {
+	if len(h.fields) == 0 {
 		// Expression is `*`.
 		return time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), next.Minute(), next.Second(), 0, next.Location()), true
 	}
 
-	for _, unit := range h.units {
-		if unit.Equal(next.Hour()) {
+	for _, field := range h.fields {
+		switch field.Compare(next.Hour()) {
+		case OrderingEqual:
 			return next, true
-		}
-		if unit.GreaterThan(next.Hour()) {
-			return time.Date(next.Year(), next.Month(), next.Day(), int(unit), 0, 0, 0, next.Location()), true
+		case OrderingGreater:
+			return time.Date(next.Year(), next.Month(), next.Day(), field.Value(), 0, 0, 0, next.Location()), true
 		}
 	}
 
@@ -133,7 +174,7 @@ func (h Hour) Next(next time.Time) (time.Time, bool) {
 }
 
 type Day struct {
-	units []Unit
+	units []ExprField
 }
 
 func (d Day) Next(next time.Time) (time.Time, bool) {
@@ -143,16 +184,16 @@ func (d Day) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, unit := range d.units {
-		if unit.Equal(next.Day()) {
+		switch unit.Compare(next.Day()) {
+		case OrderingEqual:
 			return next, true
-		}
-		if unit.GreaterThan(next.Day()) {
-			next = time.Date(next.Year(), next.Month(), int(unit), 0, 0, 0, 0, next.Location())
-			if next.Day() == int(unit) {
+		case OrderingGreater:
+			next = time.Date(next.Year(), next.Month(), unit.Value(), 0, 0, 0, 0, next.Location())
+			if next.Day() == unit.Value() {
 				return next, true
 			} else {
 				// Abort and move to the next month.
-				return time.Date(next.Year(), next.Month()+1, 1, 0, 0, 0, 0, next.Location()), false
+				return time.Date(next.Year(), next.Month(), 1, 0, 0, 0, 0, next.Location()), false
 			}
 		}
 	}
@@ -161,7 +202,7 @@ func (d Day) Next(next time.Time) (time.Time, bool) {
 }
 
 type Month struct {
-	units []Unit
+	units []ExprField
 }
 
 func (m Month) Next(next time.Time) (time.Time, bool) {
@@ -171,11 +212,11 @@ func (m Month) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, unit := range m.units {
-		if unit.Equal(int(next.Month())) {
+		switch unit.Compare(int(next.Month())) {
+		case OrderingEqual:
 			return next, true
-		}
-		if unit.GreaterThan(int(next.Month())) {
-			return time.Date(next.Year(), time.Month(unit), 0, 0, 0, 0, 0, next.Location()), true
+		case OrderingGreater:
+			return time.Date(next.Year(), time.Month(unit.Value()), 0, 0, 0, 0, 0, next.Location()), true
 		}
 	}
 
@@ -183,7 +224,7 @@ func (m Month) Next(next time.Time) (time.Time, bool) {
 }
 
 type WeekDay struct {
-	units []Unit
+	units []ExprField
 }
 
 func (wd WeekDay) Next(next time.Time) (time.Time, bool) {
@@ -192,7 +233,7 @@ func (wd WeekDay) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, unit := range wd.units {
-		if unit.Equal(int(next.Weekday())) {
+		if unit.Compare(int(next.Weekday())) == OrderingEqual {
 			return next, true
 		}
 	}
@@ -202,12 +243,39 @@ func (wd WeekDay) Next(next time.Time) (time.Time, bool) {
 
 type Unit int
 
-func (u Unit) Equal(other int) bool {
-	return int(u) == other
+func (u Unit) Compare(other int) Ordering {
+	switch {
+	case int(u) < other:
+		return OrderingLess
+	case int(u) == other:
+		return OrderingEqual
+	default:
+		return OrderingGreater
+	}
 }
 
-func (u Unit) GreaterThan(other int) bool {
-	return int(u) > other
+func (u Unit) Value() int {
+	return int(u)
+}
+
+type Range struct {
+	from int
+	to   int
+}
+
+func (r Range) Compare(other int) Ordering {
+	switch {
+	case r.to < other:
+		return OrderingLess
+	case r.from > other:
+		return OrderingGreater
+	default:
+		return OrderingEqual
+	}
+}
+
+func (r Range) Value() int {
+	return r.from
 }
 
 var weekdays = map[string]time.Weekday{
