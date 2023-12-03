@@ -10,12 +10,14 @@ var (
 	ErrValueOutsideRange    = errors.New("values are outside the supported range")
 )
 
+// TimeUnitError is an error returned when a time unit of a Cron expression is
+// malformed.
 type TimeUnitError struct {
 	inner error
-	kind  TimeUnitKind
+	kind  timeUnitKind
 }
 
-func newTimeUnitErr(kind TimeUnitKind, inner error) TimeUnitError {
+func newTimeUnitErr(kind timeUnitKind, inner error) TimeUnitError {
 	return TimeUnitError{inner: inner, kind: kind}
 }
 
@@ -31,10 +33,10 @@ func (e TimeUnitError) Is(err error) bool {
 	return errors.Is(e.inner, err)
 }
 
-type TimeUnitKind int
+type timeUnitKind int
 
 const (
-	Seconds TimeUnitKind = iota
+	Seconds timeUnitKind = iota
 	Minutes
 	Hours
 	Days
@@ -44,6 +46,6 @@ const (
 
 var kinds = []string{"seconds", "minutes", "hours", "days", "months", "week days"}
 
-func (k TimeUnitKind) String() string {
+func (k timeUnitKind) String() string {
 	return kinds[k]
 }

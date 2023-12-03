@@ -5,7 +5,7 @@ import "time"
 // secTimeUnit is a time unit implementation for the seconds field in a Cron
 // expression.
 type secTimeUnit struct {
-	units []ExprField
+	units []exprField
 }
 
 // Next implements TimeUnit.
@@ -30,7 +30,7 @@ func (s secTimeUnit) Next(next time.Time) (time.Time, bool) {
 // minTimeUnit is a time unit implementation for the minutes field in a Cron
 // expression.
 type minTimeUnit struct {
-	fields []ExprField
+	fields []exprField
 }
 
 // Next implements TimeUnit.
@@ -55,7 +55,7 @@ func (m minTimeUnit) Next(next time.Time) (time.Time, bool) {
 // hourTimeUnit is a time unit implementation for the hours field in a Cron
 // expression.
 type hourTimeUnit struct {
-	fields []ExprField
+	fields []exprField
 }
 
 // Next implements TimeUnit.
@@ -80,7 +80,7 @@ func (h hourTimeUnit) Next(next time.Time) (time.Time, bool) {
 // dayTimeUnit is a time unit implementation for the days field in a Cron
 // expression.
 type dayTimeUnit struct {
-	units []ExprField
+	units []exprField
 }
 
 // Next implements TimeUnit.
@@ -111,7 +111,7 @@ func (d dayTimeUnit) Next(next time.Time) (time.Time, bool) {
 // monthTimeUnit is a time unit implementation for the months field in a Cron
 // expression.
 type monthTimeUnit struct {
-	units []ExprField
+	units []exprField
 }
 
 // Next implements TimeUnit.
@@ -136,7 +136,7 @@ func (m monthTimeUnit) Next(next time.Time) (time.Time, bool) {
 // weekdayTimeUnit is a time unit implementation for the week days field in a
 // Cron expression.
 type weekdayTimeUnit struct {
-	units []ExprField
+	units []exprField
 }
 
 // Next implements TimeUnit.

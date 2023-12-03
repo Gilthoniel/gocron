@@ -6,22 +6,6 @@ import (
 	"time"
 )
 
-type Ordering int
-
-const (
-	OrderingLess Ordering = iota - 1
-	OrderingEqual
-	OrderingGreater
-)
-
-type ExprField interface {
-	Compare(t time.Time, other int) Ordering
-	Value(t time.Time, other int) int
-	SubsetOf(min, max int) bool
-}
-
-type ConvertFn func(string) (ExprField, error)
-
 // Parser is a parser from Cron expressions.
 type Parser struct{}
 
@@ -69,7 +53,7 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 	return
 }
 
-func (Parser) parse(expr string, convFn ConvertFn, min, max int) (fields []ExprField, err error) {
+func (Parser) parse(expr string, convFn converterFn, min, max int) (fields []exprField, err error) {
 	if expr == "*" {
 		return
 	}
@@ -79,7 +63,7 @@ func (Parser) parse(expr string, convFn ConvertFn, min, max int) (fields []ExprF
 	}
 
 	for _, u := range strings.Split(expr, ",") {
-		var field ExprField
+		var field exprField
 
 		switch {
 		case strings.Contains(u, "/"):
@@ -104,7 +88,7 @@ func (Parser) parse(expr string, convFn ConvertFn, min, max int) (fields []ExprF
 	return
 }
 
-func parseRange(expr string, convFn ConvertFn) (r rangeExpr, err error) {
+func parseRange(expr string, convFn converterFn) (r rangeExpr, err error) {
 	parts := strings.Split(expr, "-")
 	r.from, err = convFn(parts[0])
 	if err != nil {
@@ -118,7 +102,7 @@ func parseRange(expr string, convFn ConvertFn) (r rangeExpr, err error) {
 	return
 }
 
-func parseInterval(expr string, convFn ConvertFn, min, max int) (i intervalExpr, err error) {
+func parseInterval(expr string, convFn converterFn, min, max int) (i intervalExpr, err error) {
 	parts := strings.Split(expr, "/")
 
 	i.incr, err = strconv.Atoi(parts[1])
@@ -148,7 +132,7 @@ func parseInterval(expr string, convFn ConvertFn, min, max int) (i intervalExpr,
 }
 
 // isNotSpecified returns true if any of the field is not specified.
-func isNotSpecified(fields []ExprField) bool {
+func isNotSpecified(fields []exprField) bool {
 	for _, field := range fields {
 		if _, ok := field.(notSpecifiedExpr); ok {
 			return true
@@ -161,7 +145,7 @@ func isNotSpecified(fields []ExprField) bool {
 // or in other words a value not specified.
 type notSpecifiedExpr struct{}
 
-func (notSpecifiedExpr) Compare(_ time.Time, other int) Ordering {
+func (notSpecifiedExpr) Compare(_ time.Time, other int) ordering {
 	return OrderingEqual
 }
 
@@ -177,7 +161,7 @@ func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
-func (u unitExpr) Compare(_ time.Time, other int) Ordering {
+func (u unitExpr) Compare(_ time.Time, other int) ordering {
 	switch {
 	case int(u) < other:
 		return OrderingLess
@@ -199,11 +183,11 @@ func (u unitExpr) SubsetOf(min, max int) bool {
 // rangeExpr is an expression field that represents an inclusive range of
 // values.
 type rangeExpr struct {
-	from ExprField
-	to   ExprField
+	from exprField
+	to   exprField
 }
 
-func (r rangeExpr) Compare(t time.Time, other int) Ordering {
+func (r rangeExpr) Compare(t time.Time, other int) ordering {
 	switch {
 	case r.to.Compare(t, other) == OrderingLess:
 		return OrderingLess
@@ -227,7 +211,7 @@ type intervalExpr struct {
 	incr int
 }
 
-func (i intervalExpr) Compare(t time.Time, other int) Ordering {
+func (i intervalExpr) Compare(t time.Time, other int) ordering {
 	nearestAfter := i.Value(t, other)
 	isMaxGreaterOrEqual := i.rge.to.Compare(t, nearestAfter) != OrderingLess
 
@@ -264,7 +248,7 @@ func (i intervalExpr) SubsetOf(min, max int) bool {
 // day of a month.
 type lastDayOfMonthExpr struct{}
 
-func (l lastDayOfMonthExpr) Compare(t time.Time, other int) Ordering {
+func (l lastDayOfMonthExpr) Compare(t time.Time, other int) ordering {
 	return unitExpr(l.Value(t, other)).Compare(t, other)
 }
 
@@ -283,7 +267,7 @@ type lastWeekDayOfMonthExpr struct {
 	weekday time.Weekday
 }
 
-func (l lastWeekDayOfMonthExpr) Compare(t time.Time, other int) Ordering {
+func (l lastWeekDayOfMonthExpr) Compare(t time.Time, other int) ordering {
 	unit := unitExpr(l.Value(t, other))
 	return unit.Compare(t, t.Day())
 }
@@ -318,7 +302,7 @@ var weekdays = map[string]time.Weekday{
 	"sat": time.Saturday,
 }
 
-func convertWeekDay(value string) (ExprField, error) {
+func convertWeekDay(value string) (exprField, error) {
 	if value == "L" {
 		return unitExpr(time.Saturday), nil
 	}
@@ -336,14 +320,30 @@ func convertWeekDay(value string) (ExprField, error) {
 	return convertUnit(value)
 }
 
-func convertWithLastDayOfMonth(value string) (ExprField, error) {
+func convertWithLastDayOfMonth(value string) (exprField, error) {
 	if value == "L" {
 		return lastDayOfMonthExpr{}, nil
 	}
 	return convertUnit(value)
 }
 
-func convertUnit(value string) (ExprField, error) {
+func convertUnit(value string) (exprField, error) {
 	num, err := strconv.Atoi(value)
 	return unitExpr(num), err
 }
+
+type ordering int
+
+const (
+	OrderingLess ordering = iota - 1
+	OrderingEqual
+	OrderingGreater
+)
+
+type exprField interface {
+	Compare(t time.Time, other int) ordering
+	Value(t time.Time, other int) int
+	SubsetOf(min, max int) bool
+}
+
+type converterFn func(string) (exprField, error)

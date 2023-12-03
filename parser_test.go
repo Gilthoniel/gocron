@@ -101,7 +101,7 @@ func requireErrorAs(t testing.TB, err error, target any) {
 	}
 }
 
-func requireSameKind(t testing.TB, a, b TimeUnitKind) {
+func requireSameKind(t testing.TB, a, b timeUnitKind) {
 	t.Helper()
 	if a != b {
 		t.Fatalf("%s != %s", a, b)

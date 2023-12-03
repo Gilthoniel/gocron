@@ -10,6 +10,7 @@ const (
 	maxYearAttempts = 100
 )
 
+// TimeUnit represents a single part of a Cron expression.
 type TimeUnit interface {
 	// Next returns the next iteration of a schedule and `true` when valid,
 	// otherwise it returns a time after `next` and `false`.
