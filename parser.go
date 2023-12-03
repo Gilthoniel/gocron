@@ -29,30 +29,34 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 
 	weekdays, err := p.parse(matches[5], convertWeekDay, 0, 6)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(WeekDays, err)
 	}
 	months, err := p.parse(matches[4], convertUnit, 1, 12)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(Months, err)
 	}
 	days, err := p.parse(matches[3], convertWithLastDayOfMonth, 1, 31)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(Days, err)
 	}
 	hours, err := p.parse(matches[2], convertUnit, 0, 23)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(Hours, err)
 	}
 	minutes, err := p.parse(matches[1], convertUnit, 0, 59)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(Minutes, err)
 	}
 	seconds, err := p.parse(matches[0], convertUnit, 0, 59)
 	if err != nil {
-		return schedule, err
+		return schedule, newTimeUnitErr(Seconds, err)
 	}
 
-	schedule.timeUnits = []timeUnit{
+	if isNotSpecified(weekdays) && isNotSpecified(days) {
+		err = ErrMultipleNotSpecified
+	}
+
+	schedule.timeUnits = []TimeUnit{
 		monthTimeUnit{units: months},
 		dayTimeUnit{units: days},
 		weekdayTimeUnit{units: weekdays},
@@ -66,6 +70,10 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 
 func (Parser) parse(expr string, convFn ConvertFn, min, max int) (fields []ExprField, err error) {
 	if expr == "*" {
+		return
+	}
+	if expr == "?" {
+		fields = append(fields, notSpecifiedExpr{})
 		return
 	}
 
@@ -132,6 +140,28 @@ func parseInterval(expr string, convFn ConvertFn, min, max int) (i intervalExpr,
 	}
 
 	return
+}
+
+// isNotSpecified returns true if any of the field is not specified.
+func isNotSpecified(fields []ExprField) bool {
+	for _, field := range fields {
+		if _, ok := field.(notSpecifiedExpr); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// notSpecifiedExpr is an expression field that represent a question mark `?`,
+// or in other words a value not specified.
+type notSpecifiedExpr struct{}
+
+func (notSpecifiedExpr) Compare(_ time.Time, other int) Ordering {
+	return OrderingEqual
+}
+
+func (notSpecifiedExpr) Value(_ time.Time, other int) int {
+	return other
 }
 
 // unitExpr is an expression field that represents a single possible value.

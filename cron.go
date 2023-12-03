@@ -2,7 +2,7 @@ package gocron
 
 import "time"
 
-type timeUnit interface {
+type TimeUnit interface {
 	// Next returns the next iteration of a schedule and `true` when valid,
 	// otherwise it returns a time after `next` and `false`.
 	Next(next time.Time) (time.Time, bool)
@@ -10,7 +10,7 @@ type timeUnit interface {
 
 // Schedule is a representation of a Cron expression.
 type Schedule struct {
-	timeUnits []timeUnit
+	timeUnits []TimeUnit
 }
 
 // Parse returns a schedule from the Cron expression and returns an error if the

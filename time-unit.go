@@ -8,6 +8,7 @@ type secTimeUnit struct {
 	units []ExprField
 }
 
+// Next implements TimeUnit.
 func (s secTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(s.units) == 0 {
 		// Expression is `*`.
@@ -32,6 +33,7 @@ type minTimeUnit struct {
 	fields []ExprField
 }
 
+// Next implements TimeUnit.
 func (m minTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(m.fields) == 0 {
 		// Expression is `*`.
@@ -56,6 +58,7 @@ type hourTimeUnit struct {
 	fields []ExprField
 }
 
+// Next implements TimeUnit.
 func (h hourTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(h.fields) == 0 {
 		// Expression is `*`.
@@ -80,6 +83,7 @@ type dayTimeUnit struct {
 	units []ExprField
 }
 
+// Next implements TimeUnit.
 func (d dayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(d.units) == 0 {
 		// Expression is `*`.
@@ -110,6 +114,7 @@ type monthTimeUnit struct {
 	units []ExprField
 }
 
+// Next implements TimeUnit.
 func (m monthTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(m.units) == 0 {
 		// Expression is `*`.
@@ -134,6 +139,7 @@ type weekdayTimeUnit struct {
 	units []ExprField
 }
 
+// Next implements TimeUnit.
 func (wd weekdayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	if len(wd.units) == 0 {
 		return next, true

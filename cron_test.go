@@ -46,6 +46,7 @@ func TestSchedule_Next(t *testing.T) {
 		{"* * * * * 5L", time.Date(2000, time.March, 31, 0, 0, 0, 0, time.UTC)},
 		{"* * * * * 4L", time.Date(2000, time.March, 30, 0, 0, 0, 0, time.UTC)},
 		{"* * * 31 * L", time.Date(2001, time.March, 31, 0, 0, 0, 0, time.UTC)},
+		{"* * * ? * 0L", time.Date(2000, time.March, 26, 0, 0, 0, 0, time.UTC)},
 	}
 
 	for _, v := range vectors {
