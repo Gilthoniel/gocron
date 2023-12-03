@@ -282,7 +282,29 @@ func (l LastDayOfMonth) Compare(t time.Time, other int) Ordering {
 }
 
 func (LastDayOfMonth) Value(t time.Time) int {
-	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()).AddDate(0, 1, -1).Day()
+	return findLastDayOfMonth(t).Day()
+}
+
+type LastWeekDayOfMonth struct {
+	weekday time.Weekday
+}
+
+func (l LastWeekDayOfMonth) Compare(t time.Time, other int) Ordering {
+	unit := Unit(l.Value(t))
+	return unit.Compare(t, t.Day())
+}
+
+func (l LastWeekDayOfMonth) Value(t time.Time) int {
+	lastDayOfMonth := findLastDayOfMonth(t)
+	diff := int(lastDayOfMonth.Weekday() - l.weekday)
+	if diff < 0 {
+		diff += 7
+	}
+	return lastDayOfMonth.Day() - diff
+}
+
+func findLastDayOfMonth(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()).AddDate(0, 1, -1)
 }
 
 var weekdays = map[string]time.Weekday{
@@ -296,6 +318,17 @@ var weekdays = map[string]time.Weekday{
 }
 
 func convertWeekDay(value string) (ExprField, error) {
+	if value == "L" {
+		return Unit(time.Saturday), nil
+	}
+	if strings.HasSuffix(value, "L") {
+		weekday, err := strconv.Atoi(strings.TrimSuffix(value, "L"))
+		if err != nil {
+			return nil, err
+		}
+
+		return LastWeekDayOfMonth{weekday: time.Weekday(weekday)}, nil
+	}
 	if weekday, found := weekdays[strings.ToLower(value)]; found {
 		return Unit(weekday), nil
 	}
