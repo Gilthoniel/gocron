@@ -85,6 +85,16 @@ func TestParser_Parse_abortsOnMalformedWeekDays(t *testing.T) {
 	requireSameKind(t, e.kind, WeekDays)
 }
 
+func TestParser_Parse_abortsOnTooBigLastValue(t *testing.T) {
+	_, err := Parser{}.Parse("* * * L-32 * *")
+	requireErrorIs(t, err, ErrValueOutsideRange)
+}
+
+func TestParser_Parse_abortsOnTooSmallLastValue(t *testing.T) {
+	_, err := Parser{}.Parse("* * * L-0 * *")
+	requireErrorIs(t, err, ErrValueOutsideRange)
+}
+
 // --- Utilities
 
 func requireErrorIs(t testing.TB, err, target error) {

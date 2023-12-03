@@ -258,9 +258,8 @@ func (e nthLastDayOfMonthExpr) Value(t time.Time, _ int) int {
 	return findLastDayOfMonth(t).Day() - e.nthLast
 }
 
-func (nthLastDayOfMonthExpr) SubsetOf(_, _ int) bool {
-	// the value is always calculated to lie inside the proper range.
-	return true
+func (e nthLastDayOfMonthExpr) SubsetOf(min, max int) bool {
+	return e.nthLast+1 >= min && max-e.nthLast >= min
 }
 
 // lastWeekDayOfMonthExpr is a specialized expression field to determine which
@@ -328,7 +327,7 @@ func convertWithLastDayOfMonth(value string) (exprField, error) {
 	}
 	if strings.HasPrefix(value, "L-") {
 		nth, err := strconv.Atoi(strings.TrimPrefix(value, "L-"))
-		return nthLastDayOfMonthExpr{nthLast: nth}, err
+		return nthLastDayOfMonthExpr{nthLast: nth - 1}, err
 	}
 	return convertUnit(value)
 }
