@@ -2,18 +2,24 @@ package gocron
 
 import "time"
 
-type TimeUnit interface {
+type timeUnit interface {
+	// Next returns the next iteration of a schedule and `true` when valid,
+	// otherwise it returns a time after `next` and `false`.
 	Next(next time.Time) (time.Time, bool)
 }
 
+// Schedule is a representation of a Cron expression.
 type Schedule struct {
-	timeUnits []TimeUnit
+	timeUnits []timeUnit
 }
 
+// Parse returns a schedule from the Cron expression and returns an error if the
+// syntax is not supported or incorrect.
 func Parse(expression string) (Schedule, error) {
 	return Parser{}.Parse(expression)
 }
 
+// Must returns a schedule from the Cron expression and panics in case of error.
 func Must(expression string) Schedule {
 	schedule, err := Parse(expression)
 	if err != nil {
