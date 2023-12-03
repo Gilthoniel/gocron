@@ -60,3 +60,12 @@ func TestSchedule_Next(t *testing.T) {
 		})
 	}
 }
+
+func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
+	schedule := Must("* * * 31 2 ?")
+
+	next := schedule.Next(time.Now())
+	if !next.IsZero() {
+		t.Fatal("it should return the zero values")
+	}
+}

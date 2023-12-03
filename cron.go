@@ -2,7 +2,13 @@
 // over the activation times.
 package gocron
 
-import "time"
+import (
+	"time"
+)
+
+const (
+	maxYearAttempts = 100
+)
 
 type TimeUnit interface {
 	// Next returns the next iteration of a schedule and `true` when valid,
@@ -33,17 +39,28 @@ func Must(expression string) Schedule {
 // Next returns a time after the given argument, but never equals to it. A zero
 // time is returned when none can be found.
 func (s Schedule) Next(after time.Time) (next time.Time) {
-	after = after.Truncate(1 * time.Second).Add(1 * time.Second)
-	return s.nextAfter(after)
+	next = after.Truncate(1 * time.Second).Add(1 * time.Second)
+	var ok bool
+
+	for !ok {
+		if next.Year()-after.Year() > maxYearAttempts {
+			// Return a zero time when the expression is unable to find a proper
+			// time after a given number of years.
+			return time.Time{}
+		}
+		next, ok = s.nextAfter(next)
+	}
+
+	return
 }
 
-func (s Schedule) nextAfter(after time.Time) time.Time {
+func (s Schedule) nextAfter(after time.Time) (time.Time, bool) {
 	var ok bool
 	for _, unit := range s.timeUnits {
 		after, ok = unit.Next(after)
 		if !ok {
-			return s.nextAfter(after)
+			return after, false
 		}
 	}
-	return after
+	return after, true
 }
