@@ -6,6 +6,8 @@ import (
 )
 
 var (
+	ErrMalformedExpression  = errors.New("expression is malformed")
+	ErrMalformedField       = errors.New("unexpected field value")
 	ErrMultipleNotSpecified = errors.New("only one `?` is supported")
 	ErrValueOutsideRange    = errors.New("values are outside the supported range")
 )
@@ -52,5 +54,5 @@ const (
 var kinds = []string{"seconds", "minutes", "hours", "days", "months", "week days"}
 
 func (k TimeUnitKind) String() string {
-	return kinds[k]
+	return kinds[int(k)%len(kinds)]
 }

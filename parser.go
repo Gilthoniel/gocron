@@ -11,6 +11,9 @@ type Parser struct{}
 
 func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 	matches := strings.Split(expression, " ")
+	if len(matches) != 6 {
+		return schedule, ErrMalformedExpression
+	}
 
 	weekdays, err := p.parse(matches[5], convertWeekDay, 0, 6)
 	if err != nil {
@@ -90,6 +93,11 @@ func (Parser) parse(expr string, convFn converterFn, min, max int) (fields []exp
 
 func parseRange(expr string, convFn converterFn) (r rangeExpr, err error) {
 	parts := strings.Split(expr, "-")
+	if len(parts) != 2 {
+		err = ErrMalformedField
+		return
+	}
+
 	r.from, err = convFn(parts[0])
 	if err != nil {
 		return
@@ -104,6 +112,10 @@ func parseRange(expr string, convFn converterFn) (r rangeExpr, err error) {
 
 func parseInterval(expr string, convFn converterFn, min, max int) (i intervalExpr, err error) {
 	parts := strings.Split(expr, "/")
+	if len(parts) != 2 {
+		err = ErrMalformedField
+		return
+	}
 
 	i.incr, err = strconv.Atoi(parts[1])
 	if err != nil {
@@ -277,7 +289,8 @@ func (l lastWeekDayOfMonthExpr) Value(t time.Time, _ int) int {
 	lastDayOfMonth := findLastDayOfMonth(t)
 	diff := int(lastDayOfMonth.Weekday() - l.weekday)
 	if diff < 0 {
-		diff += 7
+		// Add a week length to get a positive value.
+		diff += int(time.Saturday) + 1
 	}
 	return lastDayOfMonth.Day() - diff
 }
