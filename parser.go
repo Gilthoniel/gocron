@@ -146,7 +146,7 @@ func isNotSpecified(fields []exprField) bool {
 type notSpecifiedExpr struct{}
 
 func (notSpecifiedExpr) Compare(_ time.Time, other int) ordering {
-	return OrderingEqual
+	return orderingEqual
 }
 
 func (notSpecifiedExpr) Value(_ time.Time, other int) int {
@@ -164,11 +164,11 @@ type unitExpr int
 func (u unitExpr) Compare(_ time.Time, other int) ordering {
 	switch {
 	case int(u) < other:
-		return OrderingLess
+		return orderingLess
 	case int(u) == other:
-		return OrderingEqual
+		return orderingEqual
 	default:
-		return OrderingGreater
+		return orderingGreater
 	}
 }
 
@@ -189,12 +189,12 @@ type rangeExpr struct {
 
 func (r rangeExpr) Compare(t time.Time, other int) ordering {
 	switch {
-	case r.to.Compare(t, other) == OrderingLess:
-		return OrderingLess
-	case r.from.Compare(t, other) == OrderingGreater:
-		return OrderingGreater
+	case r.to.Compare(t, other) == orderingLess:
+		return orderingLess
+	case r.from.Compare(t, other) == orderingGreater:
+		return orderingGreater
 	default:
-		return OrderingEqual
+		return orderingEqual
 	}
 }
 
@@ -213,17 +213,17 @@ type intervalExpr struct {
 
 func (i intervalExpr) Compare(t time.Time, other int) ordering {
 	nearestAfter := i.Value(t, other)
-	isMaxGreaterOrEqual := i.rge.to.Compare(t, nearestAfter) != OrderingLess
+	isMaxGreaterOrEqual := i.rge.to.Compare(t, nearestAfter) != orderingLess
 
 	switch {
 	case nearestAfter > other && isMaxGreaterOrEqual:
 		// nearestAfter is after `other` and in the range.
-		return OrderingGreater
+		return orderingGreater
 	case other == nearestAfter && isMaxGreaterOrEqual:
 		// nearestAfter is equal to `other` and in the range.
-		return OrderingEqual
+		return orderingEqual
 	default:
-		return OrderingLess
+		return orderingLess
 	}
 }
 
@@ -335,9 +335,9 @@ func convertUnit(value string) (exprField, error) {
 type ordering int
 
 const (
-	OrderingLess ordering = iota - 1
-	OrderingEqual
-	OrderingGreater
+	orderingLess ordering = iota - 1
+	orderingEqual
+	orderingGreater
 )
 
 type exprField interface {
