@@ -68,7 +68,7 @@ func (Parser) parse(expr string, convFn converterFn, min, max int) (fields []exp
 		switch {
 		case strings.Contains(u, "/"):
 			field, err = parseInterval(u, convFn, min, max)
-		case strings.Contains(u, "-"):
+		case strings.Contains(u, "-") && !strings.Contains(u, "L-"):
 			field, err = parseRange(u, convFn)
 		default:
 			field, err = convFn(u)
@@ -244,19 +244,21 @@ func (i intervalExpr) SubsetOf(min, max int) bool {
 	return i.rge.SubsetOf(min, max)
 }
 
-// lastDayOfMonthExpr is a specialized expression field to determine the last
+// nthLastDayOfMonthExpr is a specialized expression field to determine the last
 // day of a month.
-type lastDayOfMonthExpr struct{}
-
-func (l lastDayOfMonthExpr) Compare(t time.Time, other int) ordering {
-	return unitExpr(l.Value(t, other)).Compare(t, other)
+type nthLastDayOfMonthExpr struct {
+	nthLast int
 }
 
-func (lastDayOfMonthExpr) Value(t time.Time, _ int) int {
-	return findLastDayOfMonth(t).Day()
+func (e nthLastDayOfMonthExpr) Compare(t time.Time, other int) ordering {
+	return unitExpr(e.Value(t, other)).Compare(t, other)
 }
 
-func (lastDayOfMonthExpr) SubsetOf(_, _ int) bool {
+func (e nthLastDayOfMonthExpr) Value(t time.Time, _ int) int {
+	return findLastDayOfMonth(t).Day() - e.nthLast
+}
+
+func (nthLastDayOfMonthExpr) SubsetOf(_, _ int) bool {
 	// the value is always calculated to lie inside the proper range.
 	return true
 }
@@ -322,7 +324,11 @@ func convertWeekDay(value string) (exprField, error) {
 
 func convertWithLastDayOfMonth(value string) (exprField, error) {
 	if value == "L" {
-		return lastDayOfMonthExpr{}, nil
+		return nthLastDayOfMonthExpr{}, nil
+	}
+	if strings.HasPrefix(value, "L-") {
+		nth, err := strconv.Atoi(strings.TrimPrefix(value, "L-"))
+		return nthLastDayOfMonthExpr{nthLast: nth}, err
 	}
 	return convertUnit(value)
 }

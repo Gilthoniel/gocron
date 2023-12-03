@@ -61,11 +61,29 @@ func TestSchedule_Next(t *testing.T) {
 	}
 }
 
+func TestSchedule_Next_returnsNextNthLastDayOfMont(t *testing.T) {
+	schedule := Must("0 0 0 L-5 * *")
+
+	next := schedule.Next(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
+	requireTimeEqual(t, next, "2000-03-26 00:00:00 +0000 UTC")
+
+	next = schedule.Next(next)
+	requireTimeEqual(t, next, "2000-04-25 00:00:00 +0000 UTC")
+}
+
 func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
 	schedule := Must("* * * 31 2 ?")
 
 	next := schedule.Next(time.Now())
 	if !next.IsZero() {
 		t.Fatal("it should return the zero values")
+	}
+}
+
+// --- Utilities
+
+func requireTimeEqual(t testing.TB, value time.Time, expected string) {
+	if value.String() != expected {
+		t.Fatalf("%s != %s", value, expected)
 	}
 }
