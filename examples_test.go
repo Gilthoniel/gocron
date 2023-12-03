@@ -51,3 +51,20 @@ func ExampleSchedule_Upcoming_everyLastSundayOfAprilAtThreePM() {
 	// 2027-04-25 15:00:00 +0000 UTC
 	// 2028-04-30 15:00:00 +0000 UTC
 }
+
+func ExampleSchedule_Upcoming_everySecondLastDayOfEveryTwoMonths() {
+	schedule := gocron.Must("0 0 0 L-2 */2 ?")
+
+	iter := schedule.Upcoming(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.UTC))
+	for i := 0; i < 5 && iter.HasNext(); i++ {
+		next := iter.Next()
+		fmt.Println(next)
+	}
+
+	// Output:
+	// 2023-07-29 00:00:00 +0000 UTC
+	// 2023-09-28 00:00:00 +0000 UTC
+	// 2023-11-28 00:00:00 +0000 UTC
+	// 2024-01-29 00:00:00 +0000 UTC
+	// 2024-03-29 00:00:00 +0000 UTC
+}
