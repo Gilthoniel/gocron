@@ -65,3 +65,30 @@ func (s Schedule) nextAfter(after time.Time) (time.Time, bool) {
 	}
 	return after, true
 }
+
+// Upcoming returns an iterator that will iterate oover the activation times of
+// the Cron expression of the schedule.
+func (s Schedule) Upcoming(after time.Time) *Iterator {
+	i := &Iterator{schedule: s, next: after}
+	i.Next() // initialize the first value of the iterator.
+	return i
+}
+
+type Iterator struct {
+	schedule Schedule
+	next     time.Time
+}
+
+// HasNext returns true if an activation time is available. When it returns
+// false, any call to `Next` will return a zero time.
+func (i *Iterator) HasNext() bool {
+	return !i.next.IsZero()
+}
+
+// Next returns the next activation time of the schedule, or a zero time if none
+// is available.
+func (i *Iterator) Next() (next time.Time) {
+	next = i.next
+	i.next = i.schedule.Next(next)
+	return
+}
