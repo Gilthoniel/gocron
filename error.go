@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrMultipleNotSpecified = errors.New("only one `?` is supported")
+	ErrValueOutsideRange    = errors.New("values are outside the supported range")
 )
 
 type TimeUnitError struct {
@@ -24,7 +25,10 @@ func (e TimeUnitError) Error() string {
 
 func (e TimeUnitError) Is(err error) bool {
 	tue, ok := err.(TimeUnitError)
-	return ok && tue.kind == e.kind && errors.Is(tue.inner, e.inner)
+	if ok {
+		return tue.kind == e.kind && errors.Is(e.inner, tue.inner)
+	}
+	return errors.Is(e.inner, err)
 }
 
 type TimeUnitKind int

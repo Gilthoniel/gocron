@@ -17,6 +17,7 @@ const (
 type ExprField interface {
 	Compare(t time.Time, other int) Ordering
 	Value(t time.Time, other int) int
+	SubsetOf(min, max int) bool
 }
 
 type ConvertFn func(string) (ExprField, error)
@@ -92,6 +93,10 @@ func (Parser) parse(expr string, convFn ConvertFn, min, max int) (fields []ExprF
 		if err != nil {
 			return
 		}
+		if !field.SubsetOf(min, max) {
+			err = ErrValueOutsideRange
+			return
+		}
 
 		fields = append(fields, field)
 	}
@@ -164,6 +169,11 @@ func (notSpecifiedExpr) Value(_ time.Time, other int) int {
 	return other
 }
 
+func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
+	// A field not specified is always contained by any range of values.
+	return true
+}
+
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
@@ -180,6 +190,10 @@ func (u unitExpr) Compare(_ time.Time, other int) Ordering {
 
 func (u unitExpr) Value(_ time.Time, _ int) int {
 	return int(u)
+}
+
+func (u unitExpr) SubsetOf(min, max int) bool {
+	return int(u) >= min && int(u) <= max
 }
 
 // rangeExpr is an expression field that represents an inclusive range of
@@ -202,6 +216,10 @@ func (r rangeExpr) Compare(t time.Time, other int) Ordering {
 
 func (r rangeExpr) Value(t time.Time, other int) int {
 	return r.from.Value(t, other)
+}
+
+func (r rangeExpr) SubsetOf(min, max int) bool {
+	return r.from.SubsetOf(min, max) && r.to.SubsetOf(min, max)
 }
 
 type intervalExpr struct {
@@ -238,6 +256,10 @@ func (i intervalExpr) Value(t time.Time, other int) int {
 	return other
 }
 
+func (i intervalExpr) SubsetOf(min, max int) bool {
+	return i.rge.SubsetOf(min, max)
+}
+
 // lastDayOfMonthExpr is a specialized expression field to determine the last
 // day of a month.
 type lastDayOfMonthExpr struct{}
@@ -248,6 +270,11 @@ func (l lastDayOfMonthExpr) Compare(t time.Time, other int) Ordering {
 
 func (lastDayOfMonthExpr) Value(t time.Time, _ int) int {
 	return findLastDayOfMonth(t).Day()
+}
+
+func (lastDayOfMonthExpr) SubsetOf(_, _ int) bool {
+	// the value is always calculated to lie inside the proper range.
+	return true
 }
 
 // lastWeekDayOfMonthExpr is a specialized expression field to determine which
@@ -268,6 +295,11 @@ func (l lastWeekDayOfMonthExpr) Value(t time.Time, _ int) int {
 		diff += 7
 	}
 	return lastDayOfMonth.Day() - diff
+}
+
+func (lastWeekDayOfMonthExpr) SubsetOf(_, _ int) bool {
+	// the value is always calculated to lie inside the proper range.
+	return true
 }
 
 // findLastDayOfMonth returns a time corresponding to the last of the month at

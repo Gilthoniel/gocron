@@ -10,6 +10,33 @@ func TestParser_Parse_refusesTwiceNotSpecified(t *testing.T) {
 	requireErrorIs(t, err, ErrMultipleNotSpecified)
 }
 
+func TestParser_Parse_abortsOnValuesOutsideRange(t *testing.T) {
+	vectors := []string{
+		"0-60 * * * * *",
+		"60 * * * * *",
+		"* 0-60 * * * *",
+		"* 60 * * * *",
+		"* * 0-24 * * *",
+		"* * 24 * * *",
+		"* * * 0-31 * *",
+		"* * * 0 * *",
+		"* * * 32 * *",
+		"* * * * 0-12 *",
+		"* * * * 13 *",
+		"* * * * * 0-7",
+		"* * * * * 7",
+	}
+
+	parser := Parser{}
+
+	for _, v := range vectors {
+		t.Run(v, func(t *testing.T) {
+			_, err := parser.Parse(v)
+			requireErrorIs(t, err, ErrValueOutsideRange)
+		})
+	}
+}
+
 func TestParser_Parse_abortsOnMalformedSeconds(t *testing.T) {
 	_, err := Parser{}.Parse("a * * * * *")
 
