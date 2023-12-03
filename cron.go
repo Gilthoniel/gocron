@@ -1,3 +1,5 @@
+// Package gocron provides primitives to parse a Cron expression and iterate
+// over the activation times.
 package gocron
 
 import "time"
