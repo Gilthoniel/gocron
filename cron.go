@@ -15,6 +15,10 @@ type TimeUnit interface {
 	// Next returns the next iteration of a schedule and `true` when valid,
 	// otherwise it returns a time after `next` and `false`.
 	Next(next time.Time) (time.Time, bool)
+
+	// Previous returns the previous iteration of a schedule and `true` when
+	// valid, otherwise it returns a time before `prev` and `false`.
+	Previous(prev time.Time) (time.Time, bool)
 }
 
 // Schedule is a representation of a Cron expression.
@@ -64,6 +68,37 @@ func (s Schedule) nextAfter(after time.Time) (time.Time, bool) {
 		}
 	}
 	return after, true
+}
+
+// Previous returns a time before the given argument, but never equals it. A
+// zero time is returned when none can be found.
+func (s Schedule) Previous(before time.Time) (prev time.Time) {
+	prev = before.Truncate(1 * time.Second)
+	if prev.Equal(before) {
+		prev = prev.Add(-time.Second)
+	}
+
+	var ok bool
+
+	for !ok {
+		if before.Year()-prev.Year() > maxYearAttempts {
+			return time.Time{}
+		}
+		prev, ok = s.prevBefore(prev)
+	}
+
+	return
+}
+
+func (s Schedule) prevBefore(before time.Time) (time.Time, bool) {
+	var ok bool
+	for _, unit := range s.timeUnits {
+		before, ok = unit.Previous(before)
+		if !ok {
+			return before, false
+		}
+	}
+	return before, true
 }
 
 // Upcoming returns an iterator that will iterate oover the activation times of

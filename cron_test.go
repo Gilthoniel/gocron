@@ -80,9 +80,76 @@ func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
 	}
 }
 
+func TestSchedule_Previous_returnsPreviousSeconds(t *testing.T) {
+	schedule := Must("5,15 * * * * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 5, 10, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-15 12:05:05 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 12:04:15 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousMinutes(t *testing.T) {
+	schedule := Must("0 10,50 * * * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-15 12:10:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 11:50:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 11:10:00 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousHours(t *testing.T) {
+	schedule := Must("0 0 5,17 * * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-15 05:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-14 17:00:00 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousDays(t *testing.T) {
+	schedule := Must("0 0 0 28,31 * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-02-28 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-01-31 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-01-28 00:00:00 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousMonths(t *testing.T) {
+	schedule := Must("0 0 0 1 2,6 ?")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-02-01 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "1999-06-01 00:00:00 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnPreviousWeekDays(t *testing.T) {
+	schedule := Must("0 0 0 ? * MON")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-13 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-06 00:00:00 +0000 UTC")
+}
+
 // --- Utilities
 
 func requireTimeEqual(t testing.TB, value time.Time, expected string) {
+	t.Helper()
 	if value.String() != expected {
 		t.Fatalf("%s != %s", value, expected)
 	}
