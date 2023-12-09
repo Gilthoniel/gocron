@@ -2,6 +2,9 @@ package gocron
 
 import (
 	"errors"
+	"slices"
+	"sort"
+	"strconv"
 	"testing"
 )
 
@@ -95,7 +98,44 @@ func TestParser_Parse_abortsOnTooSmallLastValue(t *testing.T) {
 	requireErrorIs(t, err, ErrValueOutsideRange)
 }
 
+func TestParser_sortableUnit(t *testing.T) {
+	vectors := []struct {
+		unsorted []timeSet
+		expect   []timeSet
+	}{
+		{[]timeSet{unit(30), unit(15)}, []timeSet{unit(15), unit(30)}},
+		{[]timeSet{unit(5), rge(1, 10)}, []timeSet{rge(1, 10), unit(5)}},
+		{[]timeSet{rge(5, 10), unit(2)}, []timeSet{unit(2), rge(5, 10)}},
+		{[]timeSet{interval(5, 10), unit(2)}, []timeSet{unit(2), interval(5, 10)}},
+		{[]timeSet{unit(5), interval(1, 10)}, []timeSet{interval(1, 10), unit(5)}},
+		{[]timeSet{interval(5, 10), rge(2, 15)}, []timeSet{rge(2, 15), interval(5, 10)}},
+		{[]timeSet{rge(5, 10), interval(2, 15)}, []timeSet{interval(2, 15), rge(5, 10)}},
+		{[]timeSet{interval(5, 10), interval(2, 15)}, []timeSet{interval(2, 15), interval(5, 10)}},
+	}
+
+	for i, vector := range vectors {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			sort.Sort(sortableUnit(vector.unsorted))
+			if !slices.Equal(vector.unsorted, vector.expect) {
+				t.Fatal(i, "not sorted", vector.unsorted)
+			}
+		})
+	}
+}
+
 // --- Utilities
+
+func unit(value int) unitExpr {
+	return unitExpr(value)
+}
+
+func rge(from, to int) rangeExpr {
+	return rangeExpr{from: unit(from), to: unit(to)}
+}
+
+func interval(from, to int) intervalExpr {
+	return intervalExpr{rge: rangeExpr{unitExpr(from), unitExpr(to)}, incr: 1}
+}
 
 func requireErrorIs(t testing.TB, err, target error) {
 	t.Helper()

@@ -210,7 +210,7 @@ func (u monthTimeUnit) Previous(before time.Time) (time.Time, bool) {
 
 // weekdayTimeUnit is a time unit implementation for the week days field in a
 // Cron expression.
-type weekdayTimeUnit []timeSet
+type weekdayTimeUnit sortableUnit
 
 // Next implements TimeUnit.
 func (u weekdayTimeUnit) Next(next time.Time) (time.Time, bool) {
@@ -263,4 +263,20 @@ func setMonths(t time.Time, months time.Month) time.Time {
 
 func setYears(t time.Time, years int) time.Time {
 	return time.Date(years, 1, 1, 0, 0, 0, 0, t.Location())
+}
+
+// sortableUnit is an implement of the sort.Interface to allow to sort the units
+// in ascending order.
+type sortableUnit []timeSet
+
+func (u sortableUnit) Len() int {
+	return len(u)
+}
+
+func (u sortableUnit) Less(i, j int) bool {
+	return u[i].Less(u[j])
+}
+
+func (u sortableUnit) Swap(i, j int) {
+	u[i], u[j] = u[j], u[i]
 }
