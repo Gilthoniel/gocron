@@ -1,7 +1,6 @@
 package gocron
 
 import (
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -44,13 +43,6 @@ func (p cronParser) Parse(expression string) (schedule Schedule, err error) {
 	if isNotSpecified(weekdays) && isNotSpecified(days) {
 		err = ErrMultipleNotSpecified
 	}
-
-	sort.Sort(sortableUnit(weekdays))
-	sort.Sort(sortableUnit(months))
-	sort.Sort(sortableUnit(days))
-	sort.Sort(sortableUnit(hours))
-	sort.Sort(sortableUnit(minutes))
-	sort.Sort(sortableUnit(seconds))
 
 	schedule.timeUnits = []TimeUnit{
 		monthTimeUnit(months),
@@ -178,10 +170,6 @@ func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
 	return true
 }
 
-func (notSpecifiedExpr) Less(other timeSet) bool {
-	return false
-}
-
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
@@ -202,19 +190,6 @@ func (u unitExpr) Value(_ time.Time, _ int) int {
 
 func (u unitExpr) SubsetOf(min, max int) bool {
 	return int(u) >= min && int(u) <= max
-}
-
-func (u unitExpr) Less(other timeSet) bool {
-	switch t := other.(type) {
-	case unitExpr:
-		return u < t
-	case rangeExpr:
-		return u.Less(t.from)
-	case intervalExpr:
-		return u.Less(t.rge)
-	default:
-		return false
-	}
 }
 
 // rangeExpr is an expression field that represents an inclusive range of
@@ -241,19 +216,6 @@ func (r rangeExpr) Value(t time.Time, other int) int {
 
 func (r rangeExpr) SubsetOf(min, max int) bool {
 	return r.from.SubsetOf(min, max) && r.to.SubsetOf(min, max)
-}
-
-func (r rangeExpr) Less(other timeSet) bool {
-	switch t := other.(type) {
-	case rangeExpr:
-		return r.from.Less(t.from)
-	case intervalExpr:
-		return r.from.Less(t.rge.from)
-	case unitExpr:
-		return r.from.Less(t)
-	default:
-		return false
-	}
 }
 
 type intervalExpr struct {
@@ -294,19 +256,6 @@ func (i intervalExpr) SubsetOf(min, max int) bool {
 	return i.rge.SubsetOf(min, max)
 }
 
-func (i intervalExpr) Less(other timeSet) bool {
-	switch t := other.(type) {
-	case intervalExpr:
-		return i.rge.Less(t.rge.from)
-	case rangeExpr:
-		return i.rge.Less(t.from)
-	case unitExpr:
-		return i.rge.Less(t)
-	default:
-		return false
-	}
-}
-
 // nthLastDayOfMonthExpr is a specialized expression field to determine the last
 // day of a month.
 type nthLastDayOfMonthExpr struct {
@@ -323,10 +272,6 @@ func (e nthLastDayOfMonthExpr) Value(t time.Time, _ int) int {
 
 func (e nthLastDayOfMonthExpr) SubsetOf(min, max int) bool {
 	return e.nthLast+1 >= min && max-e.nthLast >= min
-}
-
-func (nthLastDayOfMonthExpr) Less(other timeSet) bool {
-	return false
 }
 
 // lastWeekDayOfMonthExpr is a specialized expression field to determine which
@@ -353,10 +298,6 @@ func (l lastWeekDayOfMonthExpr) Value(t time.Time, _ int) int {
 func (lastWeekDayOfMonthExpr) SubsetOf(_, _ int) bool {
 	// the value is always calculated to lie inside the proper range.
 	return true
-}
-
-func (lastWeekDayOfMonthExpr) Less(_ timeSet) bool {
-	return false
 }
 
 // findLastDayOfMonth returns a time corresponding to the last of the month at
@@ -417,10 +358,13 @@ const (
 	orderingGreater
 )
 
+// timeSet represents a set of possible values for a time unit.
 type timeSet interface {
-	Less(timeSet) bool
 	Compare(t time.Time, other int) ordering
 	Value(t time.Time, other int) int
+
+	// SubsetOf returns true if the time set is included in the range [min,
+	// max].
 	SubsetOf(min, max int) bool
 }
 

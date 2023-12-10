@@ -61,6 +61,16 @@ func TestSchedule_Next(t *testing.T) {
 	}
 }
 
+func TestSchedule_Next_returnsNextSecondsInProperOrder(t *testing.T) {
+	schedule := MustParse("0,45,15,30 * * * * *")
+
+	next := schedule.Next(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
+	requireTimeEqual(t, next, "2000-03-15 12:05:15 +0000 UTC")
+
+	next = schedule.Next(next)
+	requireTimeEqual(t, next, "2000-03-15 12:05:30 +0000 UTC")
+}
+
 func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
 	schedule := MustParse("0 0 0 L-31 * *")
 
@@ -81,7 +91,7 @@ func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousSeconds(t *testing.T) {
-	schedule := MustParse("5,15 * * * * *")
+	schedule := MustParse("15,5 * * * * *")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 5, 10, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-03-15 12:05:05 +0000 UTC")
