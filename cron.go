@@ -29,11 +29,12 @@ type Schedule struct {
 // Parse returns a schedule from the Cron expression and returns an error if the
 // syntax is not supported or incorrect.
 func Parse(expression string) (Schedule, error) {
-	return Parser{}.Parse(expression)
+	return cronParser{}.Parse(expression)
 }
 
-// Must returns a schedule from the Cron expression and panics in case of error.
-func Must(expression string) Schedule {
+// MustParse returns a schedule from the Cron expression and panics in case of
+// error.
+func MustParse(expression string) Schedule {
 	schedule, err := Parse(expression)
 	if err != nil {
 		panic(err)

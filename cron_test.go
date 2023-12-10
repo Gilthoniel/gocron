@@ -50,7 +50,7 @@ func TestSchedule_Next(t *testing.T) {
 	}
 
 	for _, v := range vectors {
-		sched := Must(v.expr)
+		sched := MustParse(v.expr)
 
 		t.Run(v.expr, func(t *testing.T) {
 			after := sched.Next(after)
@@ -62,7 +62,7 @@ func TestSchedule_Next(t *testing.T) {
 }
 
 func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
-	schedule := Must("0 0 0 L-31 * *")
+	schedule := MustParse("0 0 0 L-31 * *")
 
 	next := schedule.Next(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
 	requireTimeEqual(t, next, "2000-05-01 00:00:00 +0000 UTC")
@@ -72,7 +72,7 @@ func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
 }
 
 func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
-	schedule := Must("* * * 31 2 ?")
+	schedule := MustParse("* * * 31 2 ?")
 
 	next := schedule.Next(time.Now())
 	if !next.IsZero() {
@@ -81,7 +81,7 @@ func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousSeconds(t *testing.T) {
-	schedule := Must("5,15 * * * * *")
+	schedule := MustParse("5,15 * * * * *")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 5, 10, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-03-15 12:05:05 +0000 UTC")
@@ -91,7 +91,7 @@ func TestSchedule_Previous_returnsPreviousSeconds(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousMinutes(t *testing.T) {
-	schedule := Must("0 10,50 * * * *")
+	schedule := MustParse("0 10,50 * * * *")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-03-15 12:10:00 +0000 UTC")
@@ -104,7 +104,7 @@ func TestSchedule_Previous_returnsPreviousMinutes(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousHours(t *testing.T) {
-	schedule := Must("0 0 5,17 * * *")
+	schedule := MustParse("0 0 5,17 * * *")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-03-15 05:00:00 +0000 UTC")
@@ -114,7 +114,7 @@ func TestSchedule_Previous_returnsPreviousHours(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousDays(t *testing.T) {
-	schedule := Must("0 0 0 28,31 * *")
+	schedule := MustParse("0 0 0 28,31 * *")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-02-28 00:00:00 +0000 UTC")
@@ -127,7 +127,7 @@ func TestSchedule_Previous_returnsPreviousDays(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnsPreviousMonths(t *testing.T) {
-	schedule := Must("0 0 0 1 2,6 ?")
+	schedule := MustParse("0 0 0 1 2,6 ?")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-02-01 00:00:00 +0000 UTC")
@@ -137,7 +137,7 @@ func TestSchedule_Previous_returnsPreviousMonths(t *testing.T) {
 }
 
 func TestSchedule_Previous_returnPreviousWeekDays(t *testing.T) {
-	schedule := Must("0 0 0 ? * MON")
+	schedule := MustParse("0 0 0 ? * MON")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	requireTimeEqual(t, prev, "2000-03-13 00:00:00 +0000 UTC")

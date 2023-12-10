@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// Parser is a parser from Cron expressions.
-type Parser struct{}
+// cronParser is a parser from Cron expressions.
+type cronParser struct{}
 
-func (p Parser) Parse(expression string) (schedule Schedule, err error) {
+func (p cronParser) Parse(expression string) (schedule Schedule, err error) {
 	matches := strings.Split(expression, " ")
 	if len(matches) != 6 {
 		return schedule, ErrMalformedExpression
@@ -64,7 +64,7 @@ func (p Parser) Parse(expression string) (schedule Schedule, err error) {
 	return
 }
 
-func (Parser) parse(expr string, convFn converterFn, min, max int) (fields []timeSet, err error) {
+func (cronParser) parse(expr string, convFn converterFn, min, max int) (fields []timeSet, err error) {
 	if expr == "*" {
 		return
 	}

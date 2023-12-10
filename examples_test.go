@@ -8,7 +8,7 @@ import (
 )
 
 func ExampleSchedule_Next_everyFifteenSeconds() {
-	schedule := gocron.Must("*/15 * * * ? *")
+	schedule := gocron.MustParse("*/15 * * * ? *")
 
 	next := schedule.Next(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.UTC))
 	fmt.Println(next)
@@ -22,7 +22,7 @@ func ExampleSchedule_Next_everyFifteenSeconds() {
 }
 
 func ExampleSchedule_Next_everyLastFridayOfTheMonthAtMidnight() {
-	schedule := gocron.Must("0 0 0 ? * 5L")
+	schedule := gocron.MustParse("0 0 0 ? * 5L")
 
 	next := schedule.Next(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.UTC))
 	fmt.Println(next)
@@ -36,7 +36,7 @@ func ExampleSchedule_Next_everyLastFridayOfTheMonthAtMidnight() {
 }
 
 func ExampleSchedule_Upcoming_everyLastSundayOfAprilAtThreePM() {
-	schedule := gocron.Must("0 0 15 ? 4 0L")
+	schedule := gocron.MustParse("0 0 15 ? 4 0L")
 
 	iter := schedule.Upcoming(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.UTC))
 	for i := 0; i < 5 && iter.HasNext(); i++ {
@@ -53,7 +53,7 @@ func ExampleSchedule_Upcoming_everyLastSundayOfAprilAtThreePM() {
 }
 
 func ExampleSchedule_Upcoming_everySecondToLastDayOfEveryTwoMonths() {
-	schedule := gocron.Must("0 0 0 L-2 */2 ?")
+	schedule := gocron.MustParse("0 0 0 L-2 */2 ?")
 
 	iter := schedule.Upcoming(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.UTC))
 	for i := 0; i < 5 && iter.HasNext(); i++ {
