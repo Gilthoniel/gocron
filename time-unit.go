@@ -86,12 +86,12 @@ func (u dayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, set := range u {
-		switch set.Compare(next, next.Day()) {
+		day, direction := set.Nearest(next, next.Day())
+
+		switch direction {
 		case orderingEqual:
 			return next, true
 		case orderingGreater:
-			day := set.Value(next, next.Day())
-
 			if next = setDays(next, day); next.Day() == day {
 				// Day fits inside the current month.
 				return next, true
@@ -149,7 +149,7 @@ func (u weekdayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, set := range u {
-		if set.Compare(next, int(next.Weekday())) == orderingEqual {
+		if _, direction := set.Nearest(next, int(next.Weekday())); direction == orderingEqual {
 			return next, true
 		}
 	}
@@ -163,7 +163,7 @@ func (u weekdayTimeUnit) Previous(before time.Time) (time.Time, bool) {
 	}
 
 	for i := len(u) - 1; i >= 0; i-- {
-		if u[i].Compare(before, int(before.Weekday())) == orderingEqual {
+		if _, direction := u[i].Nearest(before, int(before.Weekday())); direction == orderingEqual {
 			return before, true
 		}
 	}
@@ -191,7 +191,7 @@ func searchCandidate[T int | time.Month](
 	t time.Time,
 	getter getterFunc[T],
 	setter setterFunc[T],
-	direction ordering,
+	order ordering,
 ) (time.Time, bool) {
 	if len(in) == 0 {
 		return t, true
@@ -200,16 +200,18 @@ func searchCandidate[T int | time.Month](
 	var candidates []int
 
 	for _, set := range in {
-		switch set.Compare(t, int(getter(t))) {
+		value, direction := set.Nearest(t, int(getter(t)))
+
+		switch direction {
 		case orderingEqual:
 			return t, true
-		case direction:
-			candidates = append(candidates, set.Value(t, int(getter(t))))
+		case order:
+			candidates = append(candidates, value)
 		}
 	}
 
 	if len(candidates) > 0 {
-		if direction == orderingGreater {
+		if order == orderingGreater {
 			// When iterating forwards, it uses the smallest candidate.
 			return setter(t, T(slices.Min(candidates))), true
 		} else {

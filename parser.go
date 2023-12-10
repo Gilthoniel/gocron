@@ -157,12 +157,8 @@ func isNotSpecified(fields []timeSet) bool {
 // or in other words a value not specified.
 type notSpecifiedExpr struct{}
 
-func (notSpecifiedExpr) Compare(_ time.Time, other int) ordering {
-	return orderingEqual
-}
-
-func (notSpecifiedExpr) Value(_ time.Time, other int) int {
-	return other
+func (notSpecifiedExpr) Nearest(t time.Time, other int) (int, ordering) {
+	return other, orderingEqual
 }
 
 func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
@@ -173,19 +169,17 @@ func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
-func (u unitExpr) Compare(_ time.Time, other int) ordering {
-	switch {
-	case int(u) < other:
-		return orderingLess
-	case int(u) == other:
-		return orderingEqual
-	default:
-		return orderingGreater
-	}
-}
+func (u unitExpr) Nearest(t time.Time, other int) (int, ordering) {
+	value := int(u)
 
-func (u unitExpr) Value(_ time.Time, _ int) int {
-	return int(u)
+	switch {
+	case value < other:
+		return value, orderingLess
+	case value == other:
+		return value, orderingEqual
+	default:
+		return value, orderingGreater
+	}
 }
 
 func (u unitExpr) SubsetOf(min, max int) bool {
@@ -199,19 +193,17 @@ type rangeExpr struct {
 	to   timeSet
 }
 
-func (r rangeExpr) Compare(t time.Time, other int) ordering {
-	switch {
-	case r.to.Compare(t, other) == orderingLess:
-		return orderingLess
-	case r.from.Compare(t, other) == orderingGreater:
-		return orderingGreater
-	default:
-		return orderingEqual
-	}
-}
+func (r rangeExpr) Nearest(t time.Time, other int) (int, ordering) {
+	value, _ := r.from.Nearest(t, other)
 
-func (r rangeExpr) Value(t time.Time, other int) int {
-	return r.from.Value(t, other)
+	if _, direction := r.to.Nearest(t, other); direction == orderingLess {
+		return value, orderingLess
+	}
+	if _, direction := r.from.Nearest(t, other); direction == orderingGreater {
+		return value, orderingGreater
+	}
+
+	return value, orderingEqual
 }
 
 func (r rangeExpr) SubsetOf(min, max int) bool {
@@ -223,24 +215,26 @@ type intervalExpr struct {
 	incr int
 }
 
-func (i intervalExpr) Compare(t time.Time, other int) ordering {
-	nearestAfter := i.Value(t, other)
-	isMaxGreaterOrEqual := i.rge.to.Compare(t, nearestAfter) != orderingLess
+func (i intervalExpr) Nearest(t time.Time, other int) (int, ordering) {
+	nearestAfter := i.valueFor(t, other)
+
+	_, direction := i.rge.to.Nearest(t, nearestAfter)
+	isMaxGreaterOrEqual := direction != orderingLess
 
 	switch {
 	case nearestAfter > other && isMaxGreaterOrEqual:
 		// nearestAfter is after `other` and in the range.
-		return orderingGreater
+		return nearestAfter, orderingGreater
 	case other == nearestAfter && isMaxGreaterOrEqual:
 		// nearestAfter is equal to `other` and in the range.
-		return orderingEqual
+		return nearestAfter, orderingEqual
 	default:
-		return orderingLess
+		return nearestAfter, orderingLess
 	}
 }
 
-func (i intervalExpr) Value(t time.Time, other int) int {
-	from := i.rge.from.Value(t, other)
+func (i intervalExpr) valueFor(t time.Time, other int) int {
+	from, _ := i.rge.from.Nearest(t, other)
 	if other < from {
 		return from
 	}
@@ -262,12 +256,10 @@ type nthLastDayOfMonthExpr struct {
 	nthLast int
 }
 
-func (e nthLastDayOfMonthExpr) Compare(t time.Time, other int) ordering {
-	return unitExpr(e.Value(t, other)).Compare(t, other)
-}
-
-func (e nthLastDayOfMonthExpr) Value(t time.Time, _ int) int {
-	return findLastDayOfMonth(t).Day() - e.nthLast
+func (e nthLastDayOfMonthExpr) Nearest(t time.Time, other int) (int, ordering) {
+	value := findLastDayOfMonth(t).Day() - e.nthLast
+	_, direction := unitExpr(value).Nearest(t, other)
+	return value, direction
 }
 
 func (e nthLastDayOfMonthExpr) SubsetOf(min, max int) bool {
@@ -280,12 +272,13 @@ type lastWeekDayOfMonthExpr struct {
 	weekday time.Weekday
 }
 
-func (l lastWeekDayOfMonthExpr) Compare(t time.Time, other int) ordering {
-	unit := unitExpr(l.Value(t, other))
-	return unit.Compare(t, t.Day())
+func (l lastWeekDayOfMonthExpr) Nearest(t time.Time, _ int) (int, ordering) {
+	value := l.valueFor(t)
+	_, direction := unitExpr(value).Nearest(t, t.Day())
+	return value, direction
 }
 
-func (l lastWeekDayOfMonthExpr) Value(t time.Time, _ int) int {
+func (l lastWeekDayOfMonthExpr) valueFor(t time.Time) int {
 	lastDayOfMonth := findLastDayOfMonth(t)
 	diff := int(lastDayOfMonth.Weekday() - l.weekday)
 	if diff < 0 {
@@ -360,8 +353,9 @@ const (
 
 // timeSet represents a set of possible values for a time unit.
 type timeSet interface {
-	Compare(t time.Time, other int) ordering
-	Value(t time.Time, other int) int
+	// Nearest returns the value and its direction compared the given time and
+	// value.
+	Nearest(time.Time, int) (int, ordering)
 
 	// SubsetOf returns true if the time set is included in the range [min,
 	// max].
