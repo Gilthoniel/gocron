@@ -81,6 +81,19 @@ func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
 	requireTimeEqual(t, next, "2000-07-01 00:00:00 +0000 UTC")
 }
 
+func TestSchedule_Next_returnsNextNthWeekdayOfMonth(t *testing.T) {
+	schedule := MustParse("0 0 0 ? * 0#3")
+
+	next := schedule.Next(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
+	requireTimeEqual(t, next, "2000-03-19 00:00:00 +0000 UTC")
+
+	next = schedule.Next(next)
+	requireTimeEqual(t, next, "2000-04-16 00:00:00 +0000 UTC")
+
+	next = schedule.Next(next)
+	requireTimeEqual(t, next, "2000-05-21 00:00:00 +0000 UTC")
+}
+
 func TestSchedule_Next_abortsExpressionIsImpossible(t *testing.T) {
 	schedule := MustParse("* * * 31 2 ?")
 

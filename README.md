@@ -21,4 +21,4 @@ This package implements the specification found in [Wikipedia](https://en.wikipe
 | Hours        | 0-59           | , - * /                    |
 | Day of month | 1-31           | , - * ? / L                |
 | Month        | 1-12           | , - * /                    |
-| Day of week  | 0-6 or SUN-SAT | , - * ? / L                |
+| Day of week  | 0-6 or SUN-SAT | , - * ? / L #              |

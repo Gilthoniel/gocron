@@ -272,19 +272,15 @@ type lastWeekDayOfMonthExpr struct {
 	weekday time.Weekday
 }
 
-func (l lastWeekDayOfMonthExpr) Nearest(t time.Time, _ int) (int, ordering) {
-	value := l.valueFor(t)
+func (e lastWeekDayOfMonthExpr) Nearest(t time.Time, _ int) (int, ordering) {
+	value := e.valueFor(t)
 	_, direction := unitExpr(value).Nearest(t, t.Day())
 	return value, direction
 }
 
-func (l lastWeekDayOfMonthExpr) valueFor(t time.Time) int {
+func (e lastWeekDayOfMonthExpr) valueFor(t time.Time) int {
 	lastDayOfMonth := findLastDayOfMonth(t)
-	diff := int(lastDayOfMonth.Weekday() - l.weekday)
-	if diff < 0 {
-		// Add a week length to get a positive value.
-		diff += int(time.Saturday) + 1
-	}
+	diff := weekdayDiff(lastDayOfMonth, e.weekday)
 	return lastDayOfMonth.Day() - diff
 }
 
@@ -297,6 +293,32 @@ func (lastWeekDayOfMonthExpr) SubsetOf(_, _ int) bool {
 // midnight.
 func findLastDayOfMonth(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()).AddDate(0, 1, -1)
+}
+
+type nthWeekdayOfMonthExpr struct {
+	weekday time.Weekday
+	nth     int
+}
+
+func (e nthWeekdayOfMonthExpr) Nearest(t time.Time, other int) (int, ordering) {
+	firstDayOfMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	diff := weekdayDiff(firstDayOfMonth, e.weekday)
+	value := firstDayOfMonth.AddDate(0, 0, (7-diff)+(e.nth-1)*7).Day()
+	_, direction := unitExpr(value).Nearest(t, t.Day())
+	return value, direction
+}
+
+func (e nthWeekdayOfMonthExpr) SubsetOf(min, max int) bool {
+	return e.nth >= 1 && e.nth <= 5 && int(e.weekday) >= min && int(e.weekday) <= max
+}
+
+func weekdayDiff(t time.Time, day time.Weekday) int {
+	diff := int(t.Weekday() - day)
+	if diff < 0 {
+		// Add a week length to get a positive value.
+		diff += int(time.Saturday) + 1
+	}
+	return diff
 }
 
 var weekdays = map[string]time.Weekday{
@@ -320,6 +342,18 @@ func convertWeekDay(value string) (timeSet, error) {
 		}
 
 		return lastWeekDayOfMonthExpr{weekday: time.Weekday(weekday)}, nil
+	}
+	if parts := strings.Split(value, "#"); len(parts) == 2 {
+		weekday, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, err
+		}
+		nth, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, err
+		}
+
+		return nthWeekdayOfMonthExpr{weekday: time.Weekday(weekday), nth: nth}, nil
 	}
 	if weekday, found := weekdays[strings.ToLower(value)]; found {
 		return unitExpr(weekday), nil
