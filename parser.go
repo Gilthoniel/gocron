@@ -157,8 +157,8 @@ func isNotSpecified(fields []timeSet) bool {
 // or in other words a value not specified.
 type notSpecifiedExpr struct{}
 
-func (notSpecifiedExpr) Nearest(t time.Time, other int) (int, ordering) {
-	return other, orderingEqual
+func (notSpecifiedExpr) NearestCandidate(t time.Time, other int, _ bool) (int, result) {
+	return other, hit
 }
 
 func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
@@ -169,16 +169,16 @@ func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
-func (u unitExpr) Nearest(t time.Time, other int) (int, ordering) {
+func (u unitExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
 	value := int(u)
 
 	switch {
-	case value < other:
-		return value, orderingLess
+	case (forwards && value < other) || (!forwards && value > other):
+		return value, miss
 	case value == other:
-		return value, orderingEqual
+		return value, hit
 	default:
-		return value, orderingGreater
+		return value, inRange
 	}
 }
 
@@ -193,17 +193,27 @@ type rangeExpr struct {
 	to   timeSet
 }
 
-func (r rangeExpr) Nearest(t time.Time, other int) (int, ordering) {
-	value, _ := r.from.Nearest(t, other)
-
-	if _, direction := r.to.Nearest(t, other); direction == orderingLess {
-		return value, orderingLess
-	}
-	if _, direction := r.from.Nearest(t, other); direction == orderingGreater {
-		return value, orderingGreater
+func (r rangeExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
+	from, to := r.from, r.to
+	if !forwards {
+		from, to = to, from
 	}
 
-	return value, orderingEqual
+	// Check if the value lies after the maximum of the range which would mean a
+	// miss and the search must move to the next candidate.
+	if _, res := to.NearestCandidate(t, other, forwards); res == miss {
+		return other, miss
+	}
+
+	// Check if the value lies before the minimum of the range which means the
+	// nearest candidate is the beginning of the range.
+	value, res := from.NearestCandidate(t, other, forwards)
+	if res == inRange {
+		return value, inRange
+	}
+
+	// The value is inside the range.
+	return other, hit
 }
 
 func (r rangeExpr) SubsetOf(min, max int) bool {
@@ -215,35 +225,28 @@ type intervalExpr struct {
 	incr int
 }
 
-func (i intervalExpr) Nearest(t time.Time, other int) (int, ordering) {
-	nearestAfter := i.valueFor(t, other)
+func (i intervalExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
+	// Get the beginning of the range.
+	from, _ := i.rge.from.NearestCandidate(t, other, forwards)
 
-	_, direction := i.rge.to.Nearest(t, nearestAfter)
-	isMaxGreaterOrEqual := direction != orderingLess
-
-	switch {
-	case nearestAfter > other && isMaxGreaterOrEqual:
-		// nearestAfter is after `other` and in the range.
-		return nearestAfter, orderingGreater
-	case other == nearestAfter && isMaxGreaterOrEqual:
-		// nearestAfter is equal to `other` and in the range.
-		return nearestAfter, orderingEqual
-	default:
-		return nearestAfter, orderingLess
-	}
-}
-
-func (i intervalExpr) valueFor(t time.Time, other int) int {
-	from, _ := i.rge.from.Nearest(t, other)
-	if other < from {
-		return from
-	}
 	remainder := (other - from) % i.incr
+	value := other
 	if remainder > 0 {
-		other += i.incr - remainder
+		value += i.incr - remainder
+	}
+	if !forwards {
+		value -= i.incr
 	}
 
-	return other
+	_, res := i.rge.NearestCandidate(t, value, forwards)
+	switch {
+	case res == hit && other == value:
+		return value, hit
+	case res == inRange || res == hit:
+		return max(from, value), inRange
+	default:
+		return value, miss
+	}
 }
 
 func (i intervalExpr) SubsetOf(min, max int) bool {
@@ -256,10 +259,10 @@ type nthLastDayOfMonthExpr struct {
 	nthLast int
 }
 
-func (e nthLastDayOfMonthExpr) Nearest(t time.Time, other int) (int, ordering) {
+func (e nthLastDayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
 	value := findLastDayOfMonth(t).Day() - e.nthLast
-	_, direction := unitExpr(value).Nearest(t, other)
-	return value, direction
+	_, res := unitExpr(value).NearestCandidate(t, other, forwards)
+	return value, res
 }
 
 func (e nthLastDayOfMonthExpr) SubsetOf(min, max int) bool {
@@ -272,9 +275,9 @@ type lastWeekDayOfMonthExpr struct {
 	weekday time.Weekday
 }
 
-func (e lastWeekDayOfMonthExpr) Nearest(t time.Time, _ int) (int, ordering) {
+func (e lastWeekDayOfMonthExpr) NearestCandidate(t time.Time, _ int, forwards bool) (int, result) {
 	value := e.valueFor(t)
-	_, direction := unitExpr(value).Nearest(t, t.Day())
+	_, direction := unitExpr(value).NearestCandidate(t, t.Day(), forwards)
 	return value, direction
 }
 
@@ -300,11 +303,16 @@ type nthWeekdayOfMonthExpr struct {
 	nth     int
 }
 
-func (e nthWeekdayOfMonthExpr) Nearest(t time.Time, other int) (int, ordering) {
+func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
 	firstDayOfMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+
 	diff := weekdayDiff(firstDayOfMonth, e.weekday)
-	value := firstDayOfMonth.AddDate(0, 0, (7-diff)+(e.nth-1)*7).Day()
-	_, direction := unitExpr(value).Nearest(t, t.Day())
+	if diff > 0 {
+		diff = -diff + e.nth*7
+	}
+
+	value := firstDayOfMonth.AddDate(0, 0, diff).Day()
+	_, direction := unitExpr(value).NearestCandidate(t, t.Day(), forwards)
 	return value, direction
 }
 
@@ -377,19 +385,19 @@ func convertUnit(value string) (timeSet, error) {
 	return unitExpr(num), err
 }
 
-type ordering int
+type result int
 
 const (
-	orderingLess ordering = iota - 1
-	orderingEqual
-	orderingGreater
+	miss result = iota
+	hit
+	inRange
 )
 
 // timeSet represents a set of possible values for a time unit.
 type timeSet interface {
-	// Nearest returns the value and its direction compared the given time and
-	// value.
-	Nearest(time.Time, int) (int, ordering)
+	// NearestCandidate returns the value and its direction compared the given
+	// time and value.
+	NearestCandidate(time.Time, int, bool) (int, result)
 
 	// SubsetOf returns true if the time set is included in the range [min,
 	// max].

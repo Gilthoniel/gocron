@@ -159,7 +159,7 @@ func TestSchedule_Previous_returnsPreviousMonths(t *testing.T) {
 	requireTimeEqual(t, prev, "1999-06-01 00:00:00 +0000 UTC")
 }
 
-func TestSchedule_Previous_returnPreviousWeekDays(t *testing.T) {
+func TestSchedule_Previous_returnsPreviousWeekDays(t *testing.T) {
 	schedule := MustParse("0 0 0 ? * MON")
 
 	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
@@ -167,6 +167,48 @@ func TestSchedule_Previous_returnPreviousWeekDays(t *testing.T) {
 
 	prev = schedule.Previous(prev)
 	requireTimeEqual(t, prev, "2000-03-06 00:00:00 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousInRange(t *testing.T) {
+	schedule := MustParse("0-1 * * * * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-15 12:29:01 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 12:29:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 12:28:01 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousInInterval(t *testing.T) {
+	schedule := MustParse("30/15 * * * * *")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-15 12:29:45 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 12:29:30 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-03-15 12:28:45 +0000 UTC")
+}
+
+func TestSchedule_Previous_returnsPreviousNthWeekday(t *testing.T) {
+	schedule := MustParse("0 0 0 ? * 6#1")
+
+	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	requireTimeEqual(t, prev, "2000-03-04 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-02-05 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "2000-01-01 00:00:00 +0000 UTC")
+
+	prev = schedule.Previous(prev)
+	requireTimeEqual(t, prev, "1999-12-04 00:00:00 +0000 UTC")
 }
 
 // --- Utilities

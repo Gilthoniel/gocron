@@ -86,12 +86,12 @@ func (u dayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, set := range u {
-		day, direction := set.Nearest(next, next.Day())
+		day, direction := set.NearestCandidate(next, next.Day(), true)
 
 		switch direction {
-		case orderingEqual:
+		case hit:
 			return next, true
-		case orderingGreater:
+		case inRange:
 			if next = setDays(next, day); next.Day() == day {
 				// Day fits inside the current month.
 				return next, true
@@ -149,7 +149,7 @@ func (u weekdayTimeUnit) Next(next time.Time) (time.Time, bool) {
 	}
 
 	for _, set := range u {
-		if _, direction := set.Nearest(next, int(next.Weekday())); direction == orderingEqual {
+		if _, direction := set.NearestCandidate(next, int(next.Weekday()), true); direction == hit {
 			return next, true
 		}
 	}
@@ -163,7 +163,7 @@ func (u weekdayTimeUnit) Previous(before time.Time) (time.Time, bool) {
 	}
 
 	for i := len(u) - 1; i >= 0; i-- {
-		if _, direction := u[i].Nearest(before, int(before.Weekday())); direction == orderingEqual {
+		if _, direction := u[i].NearestCandidate(before, int(before.Weekday()), false); direction == hit {
 			return before, true
 		}
 	}
@@ -177,13 +177,13 @@ type setterFunc[T int | time.Month] func(time.Time, T) time.Time
 // searchNextCandidate returns the more appropriate candidate from the time unit
 // if any, otherwise it returns false.
 func searchNextCandidate[T int | time.Month](in []timeSet, next time.Time, getter getterFunc[T], setter setterFunc[T]) (time.Time, bool) {
-	return searchCandidate[T](in, next, getter, setter, orderingGreater)
+	return searchCandidate[T](in, next, getter, setter, true)
 }
 
 // searchPrevCandidate returns the more appropriate candidate from the time unit
 // if any, otherwise it returns false.
 func searchPrevCandidate[T int | time.Month](in []timeSet, before time.Time, getter getterFunc[T], setter setterFunc[T]) (time.Time, bool) {
-	return searchCandidate(in, before, getter, setter, orderingLess)
+	return searchCandidate(in, before, getter, setter, false)
 }
 
 func searchCandidate[T int | time.Month](
@@ -191,7 +191,7 @@ func searchCandidate[T int | time.Month](
 	t time.Time,
 	getter getterFunc[T],
 	setter setterFunc[T],
-	order ordering,
+	forwards bool,
 ) (time.Time, bool) {
 	if len(in) == 0 {
 		return t, true
@@ -200,18 +200,18 @@ func searchCandidate[T int | time.Month](
 	var candidates []int
 
 	for _, set := range in {
-		value, direction := set.Nearest(t, int(getter(t)))
+		value, direction := set.NearestCandidate(t, int(getter(t)), forwards)
 
 		switch direction {
-		case orderingEqual:
+		case hit:
 			return t, true
-		case order:
+		case inRange:
 			candidates = append(candidates, value)
 		}
 	}
 
 	if len(candidates) > 0 {
-		if order == orderingGreater {
+		if forwards {
 			// When iterating forwards, it uses the smallest candidate.
 			return setter(t, T(slices.Min(candidates))), true
 		} else {
