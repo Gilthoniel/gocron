@@ -6,36 +6,57 @@ import (
 	"time"
 )
 
+const (
+	minExprMatches    = 6
+	maxExprMatches    = 6
+	rangeSplitSize    = 2
+	intervalSplitSize = 2
+	nthSplitSize      = 2
+
+	rangeMinWeekday    = 0
+	rangeMaxWeekday    = 6
+	rangeMinMonth      = 1
+	rangeMaxMonth      = 12
+	rangeMinDayOfMonth = 1
+	rangeMaxDayOfMonth = 31
+	rangeMinHour       = 0
+	rangeMaxHour       = 23
+	rangeMinMinute     = 0
+	rangeMaxMinute     = 59
+	rangeMinSecond     = 0
+	rangeMaxSecond     = 59
+)
+
 // cronParser is a parser from Cron expressions.
 type cronParser struct{}
 
 func (p cronParser) Parse(expression string) (schedule Schedule, err error) {
 	matches := strings.Split(expression, " ")
-	if len(matches) != 6 {
+	if len(matches) < minExprMatches || len(matches) > maxExprMatches {
 		return schedule, ErrMalformedExpression
 	}
 
-	weekdays, err := p.parse(matches[5], convertWeekDay, 0, 6)
+	weekdays, err := p.parse(matches[5], convertWeekDay, rangeMinWeekday, rangeMaxWeekday)
 	if err != nil {
 		return schedule, newTimeUnitErr(WeekDays, err)
 	}
-	months, err := p.parse(matches[4], convertUnit, 1, 12)
+	months, err := p.parse(matches[4], convertUnit, rangeMinMonth, rangeMaxMonth)
 	if err != nil {
 		return schedule, newTimeUnitErr(Months, err)
 	}
-	days, err := p.parse(matches[3], convertWithLastDayOfMonth, 1, 31)
+	days, err := p.parse(matches[3], convertWithLastDayOfMonth, rangeMinDayOfMonth, rangeMaxDayOfMonth)
 	if err != nil {
 		return schedule, newTimeUnitErr(Days, err)
 	}
-	hours, err := p.parse(matches[2], convertUnit, 0, 23)
+	hours, err := p.parse(matches[2], convertUnit, rangeMinHour, rangeMaxHour)
 	if err != nil {
 		return schedule, newTimeUnitErr(Hours, err)
 	}
-	minutes, err := p.parse(matches[1], convertUnit, 0, 59)
+	minutes, err := p.parse(matches[1], convertUnit, rangeMinMinute, rangeMaxMinute)
 	if err != nil {
 		return schedule, newTimeUnitErr(Minutes, err)
 	}
-	seconds, err := p.parse(matches[0], convertUnit, 0, 59)
+	seconds, err := p.parse(matches[0], convertUnit, rangeMinSecond, rangeMaxSecond)
 	if err != nil {
 		return schedule, newTimeUnitErr(Seconds, err)
 	}
@@ -53,16 +74,16 @@ func (p cronParser) Parse(expression string) (schedule Schedule, err error) {
 		secTimeUnit(seconds),
 	}
 
-	return
+	return schedule, err
 }
 
 func (cronParser) parse(expr string, convFn converterFn, min, max int) (fields []timeSet, err error) {
 	if expr == "*" {
-		return
+		return nil, err
 	}
 	if expr == "?" {
 		fields = append(fields, notSpecifiedExpr{})
-		return
+		return fields, err
 	}
 
 	for _, u := range strings.Split(expr, ",") {
@@ -78,22 +99,21 @@ func (cronParser) parse(expr string, convFn converterFn, min, max int) (fields [
 		}
 
 		if err != nil {
-			return
+			return nil, err
 		}
 		if !field.SubsetOf(min, max) {
-			err = ErrValueOutsideRange
-			return
+			return nil, ErrValueOutsideRange
 		}
 
 		fields = append(fields, field)
 	}
 
-	return
+	return fields, nil
 }
 
 func parseRange(expr string, convFn converterFn) (r rangeExpr, err error) {
 	parts := strings.Split(expr, "-")
-	if len(parts) != 2 {
+	if len(parts) != rangeSplitSize {
 		err = ErrMalformedField
 		return
 	}
@@ -112,14 +132,13 @@ func parseRange(expr string, convFn converterFn) (r rangeExpr, err error) {
 
 func parseInterval(expr string, convFn converterFn, min, max int) (i intervalExpr, err error) {
 	parts := strings.Split(expr, "/")
-	if len(parts) != 2 {
-		err = ErrMalformedField
-		return
+	if len(parts) != intervalSplitSize {
+		return i, ErrMalformedField
 	}
 
 	i.incr, err = strconv.Atoi(parts[1])
 	if err != nil {
-		return
+		return i, err
 	}
 
 	switch {
@@ -157,7 +176,7 @@ func isNotSpecified(fields []timeSet) bool {
 // or in other words a value not specified.
 type notSpecifiedExpr struct{}
 
-func (notSpecifiedExpr) NearestCandidate(t time.Time, other int, _ bool) (int, result) {
+func (notSpecifiedExpr) NearestCandidate(_ time.Time, other int, _ bool) (int, result) {
 	return other, hit
 }
 
@@ -169,7 +188,7 @@ func (notSpecifiedExpr) SubsetOf(_, _ int) bool {
 // unitExpr is an expression field that represents a single possible value.
 type unitExpr int
 
-func (u unitExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
+func (u unitExpr) NearestCandidate(_ time.Time, other int, forwards bool) (int, result) {
 	value := int(u)
 
 	switch {
@@ -270,7 +289,7 @@ func (e nthLastDayOfMonthExpr) SubsetOf(min, max int) bool {
 }
 
 // lastWeekDayOfMonthExpr is a specialized expression field to determine which
-// day of the month corresponds to the last occurence of a week day.
+// day of the month corresponds to the last occurrence of a week day.
 type lastWeekDayOfMonthExpr struct {
 	weekday time.Weekday
 }
@@ -307,7 +326,7 @@ type nthWeekdayOfMonthExpr struct {
 	nth     int
 }
 
-func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
+func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, _ int, forwards bool) (int, result) {
 	firstDayOfMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 
 	diff := int(firstDayOfMonth.Weekday() - e.weekday)
@@ -317,7 +336,7 @@ func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards
 		diff += int(time.Saturday) + 1
 	}
 
-	diff = -diff + e.nth*7
+	diff = -diff + e.nth*(int(time.Saturday+1))
 
 	value := firstDayOfMonth.AddDate(0, 0, diff).Day()
 	_, direction := unitExpr(value).NearestCandidate(t, t.Day(), forwards)
@@ -350,7 +369,7 @@ func convertWeekDay(value string) (timeSet, error) {
 
 		return lastWeekDayOfMonthExpr{weekday: time.Weekday(weekday)}, nil
 	}
-	if parts := strings.Split(value, "#"); len(parts) == 2 {
+	if parts := strings.Split(value, "#"); len(parts) == nthSplitSize {
 		weekday, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return nil, err

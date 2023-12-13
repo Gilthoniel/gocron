@@ -176,13 +176,22 @@ type setterFunc[T int | time.Month] func(time.Time, T) time.Time
 
 // searchNextCandidate returns the more appropriate candidate from the time unit
 // if any, otherwise it returns false.
-func searchNextCandidate[T int | time.Month](in []timeSet, next time.Time, getter getterFunc[T], setter setterFunc[T]) (time.Time, bool) {
+func searchNextCandidate[T int | time.Month](
+	in []timeSet, next time.Time,
+	getter getterFunc[T],
+	setter setterFunc[T],
+) (time.Time, bool) {
 	return searchCandidate[T](in, next, getter, setter, true)
 }
 
 // searchPrevCandidate returns the more appropriate candidate from the time unit
 // if any, otherwise it returns false.
-func searchPrevCandidate[T int | time.Month](in []timeSet, before time.Time, getter getterFunc[T], setter setterFunc[T]) (time.Time, bool) {
+func searchPrevCandidate[T int | time.Month](
+	in []timeSet,
+	before time.Time,
+	getter getterFunc[T],
+	setter setterFunc[T],
+) (time.Time, bool) {
 	return searchCandidate(in, before, getter, setter, false)
 }
 
@@ -214,10 +223,10 @@ func searchCandidate[T int | time.Month](
 		if forwards {
 			// When iterating forwards, it uses the smallest candidate.
 			return setter(t, T(slices.Min(candidates))), true
-		} else {
-			// When iterating backwards, it uses the biggest candidate.
-			return setter(t, T(slices.Max(candidates))), true
 		}
+
+		// When iterating backwards, it uses the biggest candidate.
+		return setter(t, T(slices.Max(candidates))), true
 	}
 
 	return time.Time{}, false
