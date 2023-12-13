@@ -102,17 +102,25 @@ func (s Schedule) prevBefore(before time.Time) (time.Time, bool) {
 	return before, true
 }
 
-// Upcoming returns an iterator that will iterate oover the activation times of
-// the Cron expression of the schedule.
+// Upcoming returns an iterator that will iterate over the activation times of
+// the Cron expression of the schedule forwards from the given time.
 func (s Schedule) Upcoming(after time.Time) *Iterator {
-	i := &Iterator{schedule: s, next: after}
+	i := &Iterator{fn: s.Next, next: after}
+	i.Next() // initialize the first value of the iterator.
+	return i
+}
+
+// Preceding returns an iterator that will iterate over the actiation times of
+// the Cron expression of the schedule backwards from the given time.
+func (s Schedule) Preceding(before time.Time) *Iterator {
+	i := &Iterator{fn: s.Previous, next: before}
 	i.Next() // initialize the first value of the iterator.
 	return i
 }
 
 type Iterator struct {
-	schedule Schedule
-	next     time.Time
+	fn   func(time.Time) time.Time
+	next time.Time
 }
 
 // HasNext returns true if an activation time is available. When it returns
@@ -125,6 +133,6 @@ func (i *Iterator) HasNext() bool {
 // is available.
 func (i *Iterator) Next() (next time.Time) {
 	next = i.next
-	i.next = i.schedule.Next(next)
+	i.next = i.fn(next)
 	return
 }

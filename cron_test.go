@@ -61,7 +61,7 @@ func TestSchedule_Next(t *testing.T) {
 	}
 }
 
-func TestSchedule_Next_returnsNextSecondsInProperOrder(t *testing.T) {
+func TestSchedule_Upcoming_returnsNextSecondsInProperOrder(t *testing.T) {
 	iter := MustParse("0,45,15,30 * * * * *").Upcoming(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
 	expects := []string{
 		"2000-03-15 12:05:15 +0000 UTC",
@@ -71,14 +71,10 @@ func TestSchedule_Next_returnsNextSecondsInProperOrder(t *testing.T) {
 		"2000-03-15 12:06:15 +0000 UTC",
 	}
 
-	for _, expect := range expects {
-		t.Run(expect, func(t *testing.T) {
-			requireTimeEqual(t, iter.Next(), expect)
-		})
-	}
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
+func TestSchedule_Upcoming_returnsNextNthLastDayOfMonth(t *testing.T) {
 	iter := MustParse("0 0 0 L-31 * *").Upcoming(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
 	expects := []string{
 		"2000-05-01 00:00:00 +0000 UTC",
@@ -88,14 +84,10 @@ func TestSchedule_Next_returnsNextNthLastDayOfMonth(t *testing.T) {
 		"2000-12-01 00:00:00 +0000 UTC",
 	}
 
-	for _, expect := range expects {
-		t.Run(expect, func(t *testing.T) {
-			requireTimeEqual(t, iter.Next(), expect)
-		})
-	}
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Next_returnsNextNthWeekdayOfMonth(t *testing.T) {
+func TestSchedule_Upcoming_returnsNextNthWeekdayOfMonth(t *testing.T) {
 	iter := MustParse("0 0 0 ? * 0#3").Upcoming(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
 	expects := []string{
 		"2000-03-19 00:00:00 +0000 UTC",
@@ -111,11 +103,7 @@ func TestSchedule_Next_returnsNextNthWeekdayOfMonth(t *testing.T) {
 		"2001-01-21 00:00:00 +0000 UTC",
 	}
 
-	for _, expect := range expects {
-		t.Run(expect, func(t *testing.T) {
-			requireTimeEqual(t, iter.Next(), expect)
-		})
-	}
+	testIterator(t, iter, expects)
 }
 
 func TestSchedule_Next_abortsExpressionWhichIsImpossible(t *testing.T) {
@@ -127,112 +115,102 @@ func TestSchedule_Next_abortsExpressionWhichIsImpossible(t *testing.T) {
 	}
 }
 
-func TestSchedule_Previous_returnsPreviousSeconds(t *testing.T) {
-	schedule := MustParse("15,5 * * * * *")
+func TestSchedule_Preceding_returnsPreviousSeconds(t *testing.T) {
+	iter := MustParse("15,5 * * * * *").Preceding(time.Date(2000, time.March, 15, 12, 5, 10, 0, time.UTC))
+	expects := []string{
+		"2000-03-15 12:05:05 +0000 UTC",
+		"2000-03-15 12:04:15 +0000 UTC",
+		"2000-03-15 12:04:05 +0000 UTC",
+		"2000-03-15 12:03:15 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 5, 10, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-15 12:05:05 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 12:04:15 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousMinutes(t *testing.T) {
-	schedule := MustParse("0 10,50 * * * *")
+func TestSchedule_Preceding_returnsPreviousMinutes(t *testing.T) {
+	iter := MustParse("0 10,50 * * * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-15 12:10:00 +0000 UTC",
+		"2000-03-15 11:50:00 +0000 UTC",
+		"2000-03-15 11:10:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-15 12:10:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 11:50:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 11:10:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousHours(t *testing.T) {
-	schedule := MustParse("0 0 5,17 * * *")
+func TestSchedule_Preceding_returnsPreviousHours(t *testing.T) {
+	iter := MustParse("0 0 5,17 * * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-15 05:00:00 +0000 UTC",
+		"2000-03-14 17:00:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-15 05:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-14 17:00:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousDays(t *testing.T) {
-	schedule := MustParse("0 0 0 28,31 * *")
+func TestSchedule_Preceding_returnsPreviousDays(t *testing.T) {
+	iter := MustParse("0 0 0 28,31 * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-02-28 00:00:00 +0000 UTC",
+		"2000-01-31 00:00:00 +0000 UTC",
+		"2000-01-28 00:00:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-02-28 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-01-31 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-01-28 00:00:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousMonths(t *testing.T) {
-	schedule := MustParse("0 0 0 1 2,6 ?")
+func TestSchedule_Preceding_returnsPreviousMonths(t *testing.T) {
+	iter := MustParse("0 0 0 1 2,6 ?").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-02-01 00:00:00 +0000 UTC",
+		"1999-06-01 00:00:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-02-01 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "1999-06-01 00:00:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousWeekDays(t *testing.T) {
-	schedule := MustParse("0 0 0 ? * MON")
+func TestSchedule_Preceding_returnsPreviousWeekDays(t *testing.T) {
+	iter := MustParse("0 0 0 ? * MON").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-13 00:00:00 +0000 UTC",
+		"2000-03-06 00:00:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-13 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-06 00:00:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousInRange(t *testing.T) {
-	schedule := MustParse("0-1 * * * * *")
+func TestSchedule_Preceding_returnsPreviousInRange(t *testing.T) {
+	iter := MustParse("0-1 * * * * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-15 12:29:01 +0000 UTC",
+		"2000-03-15 12:29:00 +0000 UTC",
+		"2000-03-15 12:28:01 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-15 12:29:01 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 12:29:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 12:28:01 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousInInterval(t *testing.T) {
-	schedule := MustParse("30/15 * * * * *")
+func TestSchedule_Preceding_returnsPreviousInInterval(t *testing.T) {
+	iter := MustParse("30/15 * * * * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-15 12:29:45 +0000 UTC",
+		"2000-03-15 12:29:30 +0000 UTC",
+		"2000-03-15 12:28:45 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-15 12:29:45 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 12:29:30 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-03-15 12:28:45 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
-func TestSchedule_Previous_returnsPreviousNthWeekday(t *testing.T) {
-	schedule := MustParse("0 0 0 ? * 6#1")
+func TestSchedule_Preceding_returnsPreviousNthWeekday(t *testing.T) {
+	iter := MustParse("0 0 0 ? * 6#1").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	expects := []string{
+		"2000-03-04 00:00:00 +0000 UTC",
+		"2000-02-05 00:00:00 +0000 UTC",
+		"2000-01-01 00:00:00 +0000 UTC",
+		"1999-12-04 00:00:00 +0000 UTC",
+	}
 
-	prev := schedule.Previous(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
-	requireTimeEqual(t, prev, "2000-03-04 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-02-05 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "2000-01-01 00:00:00 +0000 UTC")
-
-	prev = schedule.Previous(prev)
-	requireTimeEqual(t, prev, "1999-12-04 00:00:00 +0000 UTC")
+	testIterator(t, iter, expects)
 }
 
 // --- Utilities
@@ -241,5 +219,13 @@ func requireTimeEqual(t testing.TB, value time.Time, expected string) {
 	t.Helper()
 	if value.String() != expected {
 		t.Fatalf("%s != %s", value, expected)
+	}
+}
+
+func testIterator(t *testing.T, iter *Iterator, expects []string) {
+	for _, expect := range expects {
+		t.Run(expect, func(t *testing.T) {
+			requireTimeEqual(t, iter.Next(), expect)
+		})
 	}
 }
