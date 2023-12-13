@@ -283,7 +283,11 @@ func (e lastWeekDayOfMonthExpr) NearestCandidate(t time.Time, _ int, forwards bo
 
 func (e lastWeekDayOfMonthExpr) valueFor(t time.Time) int {
 	lastDayOfMonth := findLastDayOfMonth(t)
-	diff := weekdayDiff(lastDayOfMonth, e.weekday)
+	diff := int(lastDayOfMonth.Weekday() - e.weekday)
+	if diff < 0 {
+		// Add a week length to get a positive value.
+		diff += int(time.Saturday) + 1
+	}
 	return lastDayOfMonth.Day() - diff
 }
 
@@ -306,10 +310,14 @@ type nthWeekdayOfMonthExpr struct {
 func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards bool) (int, result) {
 	firstDayOfMonth := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 
-	diff := weekdayDiff(firstDayOfMonth, e.weekday)
-	if diff > 0 {
-		diff = -diff + e.nth*7
+	diff := int(firstDayOfMonth.Weekday() - e.weekday)
+	if diff <= 0 {
+		// Add a week length to get a positive value. Note that here we also
+		// increment foor the zero value.
+		diff += int(time.Saturday) + 1
 	}
+
+	diff = -diff + e.nth*7
 
 	value := firstDayOfMonth.AddDate(0, 0, diff).Day()
 	_, direction := unitExpr(value).NearestCandidate(t, t.Day(), forwards)
@@ -318,15 +326,6 @@ func (e nthWeekdayOfMonthExpr) NearestCandidate(t time.Time, other int, forwards
 
 func (e nthWeekdayOfMonthExpr) SubsetOf(min, max int) bool {
 	return e.nth >= 1 && e.nth <= 5 && int(e.weekday) >= min && int(e.weekday) <= max
-}
-
-func weekdayDiff(t time.Time, day time.Weekday) int {
-	diff := int(t.Weekday() - day)
-	if diff < 0 {
-		// Add a week length to get a positive value.
-		diff += int(time.Saturday) + 1
-	}
-	return diff
 }
 
 var weekdays = map[string]time.Weekday{
