@@ -10,6 +10,8 @@ const (
 	maxYearAttempts = 100
 )
 
+var defaultParser = cronParser{}
+
 // TimeUnit represents a single part of a Cron expression.
 type TimeUnit interface {
 	// Next returns the next iteration of a schedule and `true` when valid,
@@ -29,7 +31,7 @@ type Schedule struct {
 // Parse returns a schedule from the Cron expression and returns an error if the
 // syntax is not supported or incorrect.
 func Parse(expression string) (Schedule, error) {
-	return cronParser{}.Parse(expression)
+	return defaultParser.Parse(expression)
 }
 
 // MustParse returns a schedule from the Cron expression and panics in case of

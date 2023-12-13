@@ -6,7 +6,7 @@ import (
 )
 
 func TestParser_Parse_refusesTwiceNotSpecified(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * ? * ?")
+	_, err := defaultParser.Parse("* * * ? * ?")
 	requireErrorIs(t, err, ErrMultipleNotSpecified)
 }
 
@@ -27,7 +27,7 @@ func TestParser_Parse_abortsOnValuesOutsideRange(t *testing.T) {
 		"* * * * * 7",
 	}
 
-	parser := cronParser{}
+	parser := defaultParser
 
 	for _, v := range vectors {
 		t.Run(v, func(t *testing.T) {
@@ -38,7 +38,7 @@ func TestParser_Parse_abortsOnValuesOutsideRange(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedSeconds(t *testing.T) {
-	_, err := cronParser{}.Parse("a * * * * *")
+	_, err := defaultParser.Parse("a * * * * *")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -46,7 +46,7 @@ func TestParser_Parse_abortsOnMalformedSeconds(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedMinutes(t *testing.T) {
-	_, err := cronParser{}.Parse("* a * * * *")
+	_, err := defaultParser.Parse("* a * * * *")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -54,7 +54,7 @@ func TestParser_Parse_abortsOnMalformedMinutes(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedHours(t *testing.T) {
-	_, err := cronParser{}.Parse("* * a * * *")
+	_, err := defaultParser.Parse("* * a * * *")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -62,7 +62,7 @@ func TestParser_Parse_abortsOnMalformedHours(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedDays(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * a * *")
+	_, err := defaultParser.Parse("* * * a * *")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -70,7 +70,7 @@ func TestParser_Parse_abortsOnMalformedDays(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedMonths(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * * a *")
+	_, err := defaultParser.Parse("* * * * a *")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -78,7 +78,7 @@ func TestParser_Parse_abortsOnMalformedMonths(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnMalformedWeekDays(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * * * a")
+	_, err := defaultParser.Parse("* * * * * a")
 
 	var e TimeUnitError
 	requireErrorAs(t, err, &e)
@@ -86,12 +86,12 @@ func TestParser_Parse_abortsOnMalformedWeekDays(t *testing.T) {
 }
 
 func TestParser_Parse_abortsOnTooBigLastValue(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * L-32 * *")
+	_, err := defaultParser.Parse("* * * L-32 * *")
 	requireErrorIs(t, err, ErrValueOutsideRange)
 }
 
 func TestParser_Parse_abortsOnTooSmallLastValue(t *testing.T) {
-	_, err := cronParser{}.Parse("* * * L-0 * *")
+	_, err := defaultParser.Parse("* * * L-0 * *")
 	requireErrorIs(t, err, ErrValueOutsideRange)
 }
 
