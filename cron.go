@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-const (
-	maxYearAttempts = 100
-)
-
 var defaultParser = cronParser{}
 
 // TimeUnit represents a single part of a Cron expression.
@@ -51,7 +47,7 @@ func (s Schedule) Next(after time.Time) (next time.Time) {
 	var ok bool
 
 	for !ok {
-		if next.Year()-after.Year() > maxYearAttempts {
+		if next.IsZero() || next.Year() > rangeMaxYear {
 			// Return a zero time when the expression is unable to find a proper
 			// time after a given number of years.
 			return time.Time{}
@@ -84,7 +80,7 @@ func (s Schedule) Previous(before time.Time) (prev time.Time) {
 	var ok bool
 
 	for !ok {
-		if before.Year()-prev.Year() > maxYearAttempts {
+		if prev.IsZero() || prev.Year() > rangeMaxYear {
 			return time.Time{}
 		}
 		prev, ok = s.prevBefore(prev)

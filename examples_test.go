@@ -21,6 +21,20 @@ func ExampleSchedule_Next_everyFifteenSeconds() {
 	// 2023-06-04 00:00:30 +0000 UTC
 }
 
+func ExampleSchedule_Next_usingTimezone() {
+	schedule := gocron.MustParse("*/15 * * * * *")
+
+	next := schedule.Next(time.Date(2023, time.June, 4, 0, 0, 0, 0, time.FixedZone("CEST", 120)))
+	fmt.Println(next)
+
+	next = schedule.Next(next)
+	fmt.Println(next)
+
+	// Output:
+	// 2023-06-04 00:00:15 +0002 CEST
+	// 2023-06-04 00:00:30 +0002 CEST
+}
+
 func ExampleSchedule_Next_everyLastFridayOfTheMonthAtMidnight() {
 	schedule := gocron.MustParse("0 0 0 ? * 5L")
 

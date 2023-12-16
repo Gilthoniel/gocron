@@ -171,6 +171,26 @@ func (u weekdayTimeUnit) Previous(before time.Time) (time.Time, bool) {
 	return setDays(before, before.Day()-1), false
 }
 
+type yearTimeUnit []timeSet
+
+func (u yearTimeUnit) Next(next time.Time) (time.Time, bool) {
+	candidate, ok := searchNextCandidate(u, next, time.Time.Year, setYears)
+	if ok {
+		return candidate, true
+	}
+
+	return setYears(next, rangeMaxYear+1), false
+}
+
+func (u yearTimeUnit) Previous(before time.Time) (time.Time, bool) {
+	candidate, ok := searchPrevCandidate(u, before, time.Time.Year, setYears)
+	if ok {
+		return candidate, true
+	}
+
+	return setYears(before, rangeMinYear), false
+}
+
 type getterFunc[T int | time.Month] func(time.Time) T
 type setterFunc[T int | time.Month] func(time.Time, T) time.Time
 
@@ -225,8 +245,9 @@ func searchCandidate[T int | time.Month](
 			return setter(t, T(slices.Min(candidates))), true
 		}
 
-		// When iterating backwards, it uses the biggest candidate.
-		return setter(t, T(slices.Max(candidates))), true
+		// When iterating backwards, it uses the biggest candidate annd sets all
+		// the lower fields too their max value.
+		return setter(t, T(slices.Max(candidates))+1).Add(-time.Second), true
 	}
 
 	return time.Time{}, false

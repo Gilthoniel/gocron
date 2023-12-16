@@ -22,3 +22,4 @@ This package implements the specification found in [Wikipedia](https://en.wikipe
 | Day of month | 1-31           | , - * ? / L                |
 | Month        | 1-12           | , - * /                    |
 | Day of week  | 0-6 or SUN-SAT | , - * ? / L #              |
+| Years        | 1-9999         | , - * /                    |

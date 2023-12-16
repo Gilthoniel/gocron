@@ -8,11 +8,13 @@ import (
 
 const (
 	minExprMatches    = 6
-	maxExprMatches    = 6
+	maxExprMatches    = 7
 	rangeSplitSize    = 2
 	intervalSplitSize = 2
 	nthSplitSize      = 2
 
+	rangeMinYear       = 1
+	rangeMaxYear       = 9999
 	rangeMinWeekday    = 0
 	rangeMaxWeekday    = 6
 	rangeMinMonth      = 1
@@ -72,6 +74,15 @@ func (p cronParser) Parse(expression string) (schedule Schedule, err error) {
 		hourTimeUnit(hours),
 		minTimeUnit(minutes),
 		secTimeUnit(seconds),
+	}
+
+	if len(matches) == maxExprMatches {
+		years, err := p.parse(matches[maxExprMatches-1], convertUnit, rangeMinYear, rangeMaxYear)
+		if err != nil {
+			return schedule, newTimeUnitErr(Years, err)
+		}
+
+		schedule.timeUnits = append([]TimeUnit{yearTimeUnit(years)}, schedule.timeUnits...)
 	}
 
 	return schedule, err

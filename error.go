@@ -49,9 +49,10 @@ const (
 	Days
 	Months
 	WeekDays
+	Years
 )
 
-var kinds = []string{"seconds", "minutes", "hours", "days", "months", "week days"}
+var kinds = []string{"seconds", "minutes", "hours", "days", "months", "week days", "years"}
 
 func (k TimeUnitKind) String() string {
 	return kinds[int(k)%len(kinds)]

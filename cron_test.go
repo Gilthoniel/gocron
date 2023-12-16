@@ -106,6 +106,17 @@ func TestSchedule_Upcoming_returnsNextNthWeekdayOfMonth(t *testing.T) {
 	testIterator(t, iter, expects)
 }
 
+func TestSchedule_Upcoming_returnsNextYear(t *testing.T) {
+	iter := MustParse("0 0 0 1 6 ? 2010-2012").Upcoming(time.Date(2000, time.March, 15, 12, 5, 1, 0, time.UTC))
+	expects := []string{
+		"2010-06-01 00:00:00 +0000 UTC",
+		"2011-06-01 00:00:00 +0000 UTC",
+		"2012-06-01 00:00:00 +0000 UTC",
+	}
+
+	testIterator(t, iter, expects)
+}
+
 func TestSchedule_Next_abortsExpressionWhichIsImpossible(t *testing.T) {
 	schedule := MustParse("* * * 31 2 ?")
 
@@ -149,11 +160,11 @@ func TestSchedule_Preceding_returnsPreviousHours(t *testing.T) {
 }
 
 func TestSchedule_Preceding_returnsPreviousDays(t *testing.T) {
-	iter := MustParse("0 0 0 28,31 * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
+	iter := MustParse("30 30 12 28,31 * *").Preceding(time.Date(2000, time.March, 15, 12, 30, 0, 0, time.UTC))
 	expects := []string{
-		"2000-02-28 00:00:00 +0000 UTC",
-		"2000-01-31 00:00:00 +0000 UTC",
-		"2000-01-28 00:00:00 +0000 UTC",
+		"2000-02-28 12:30:30 +0000 UTC",
+		"2000-01-31 12:30:30 +0000 UTC",
+		"2000-01-28 12:30:30 +0000 UTC",
 	}
 
 	testIterator(t, iter, expects)
@@ -174,6 +185,27 @@ func TestSchedule_Preceding_returnsPreviousWeekDays(t *testing.T) {
 	expects := []string{
 		"2000-03-13 00:00:00 +0000 UTC",
 		"2000-03-06 00:00:00 +0000 UTC",
+	}
+
+	testIterator(t, iter, expects)
+}
+
+func TestSchedule_Preceding_returnsPreviousYear(t *testing.T) {
+	iter := MustParse("0 0 0 1 6 ? 1900/5").Preceding(time.Date(2003, time.March, 15, 12, 5, 1, 0, time.UTC))
+	expects := []string{
+		"2000-06-01 00:00:00 +0000 UTC",
+		"1995-06-01 00:00:00 +0000 UTC",
+		"1990-06-01 00:00:00 +0000 UTC",
+	}
+
+	testIterator(t, iter, expects)
+}
+
+func TestSchedule_Preceding_returnsPreviousYearInList(t *testing.T) {
+	iter := MustParse("30 30 12 1 6 ? 1901,1902").Preceding(time.Date(2003, time.March, 15, 12, 5, 1, 0, time.UTC))
+	expects := []string{
+		"1902-06-01 12:30:30 +0000 UTC",
+		"1901-06-01 12:30:30 +0000 UTC",
 	}
 
 	testIterator(t, iter, expects)
