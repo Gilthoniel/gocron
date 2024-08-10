@@ -32,4 +32,4 @@ This package implements the specification found in [Wikipedia](https://en.wikipe
 * `,` can be used to list values (e.g. `1,2,3` means values 1, 2 and 3).
 * `/` can be used to specify an interval (e.g. `1/5` means values 1, 6, 11, 16, etc...).
 * `L` when used in the month field specifies the last day of the month and Saturday when used in the week day field. Using a digit before the character in the week day field specifies the nth last week day of the month (e.g. `1L` for the last Monday of the month). An offset can also be used for the month field (e.g. `L-2` for the second last day of the month).
-* `#` can be used to specify the nth week day of the month (e.g. `6#3` for the third (`3`) Friday (`6`) of the month).
+* `#` can be used to specify the nth week day of the month (e.g. `6#3` for the third (`3`) Saturday (`6`) of the month).
